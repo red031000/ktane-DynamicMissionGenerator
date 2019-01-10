@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dynamic Mission Generator", "Dynamic Mission Generator.csproj", "{D317F0A8-A1D0-E69E-5431-17A761443AFF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dynamic Mission Generator.Editor", "Dynamic Mission Generator.Editor.csproj", "{4EDC2610-3291-C572-2440-4DFAC4EF3410}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D317F0A8-A1D0-E69E-5431-17A761443AFF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D317F0A8-A1D0-E69E-5431-17A761443AFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D317F0A8-A1D0-E69E-5431-17A761443AFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D317F0A8-A1D0-E69E-5431-17A761443AFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4EDC2610-3291-C572-2440-4DFAC4EF3410}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4EDC2610-3291-C572-2440-4DFAC4EF3410}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4EDC2610-3291-C572-2440-4DFAC4EF3410}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4EDC2610-3291-C572-2440-4DFAC4EF3410}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
