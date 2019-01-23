@@ -10,9 +10,7 @@ namespace DynamicMissionGeneratorAssembly
 		public KMSelectable MissionCreationPagePrefab;
 		public Texture2D ModSelectorIcon;
 
-		public KMSelectable RunButton;
-
-		private static IDictionary<string, object> _modSelectorApi;
+		public static IDictionary<string, object> ModSelectorApi;
 		private void Start()
 		{
 			StartCoroutine(FindModSelector());
@@ -25,7 +23,7 @@ namespace DynamicMissionGeneratorAssembly
 				GameObject modSelectorObject = GameObject.Find("ModSelector_Info");
 				if (modSelectorObject != null)
 				{
-					_modSelectorApi = modSelectorObject.GetComponent<IDictionary<string, object>>();
+					ModSelectorApi = modSelectorObject.GetComponent<IDictionary<string, object>>();
 					RegisterService();
 					yield break;
 				}
@@ -36,22 +34,11 @@ namespace DynamicMissionGeneratorAssembly
 
 		private void RegisterService()
 		{
-			Action<KMSelectable> addPageMethod = (Action<KMSelectable>)_modSelectorApi["AddPageMethod"];
+			Action<KMSelectable> addPageMethod = (Action<KMSelectable>)ModSelectorApi["AddPageMethod"];
 			addPageMethod(MissionCreationPagePrefab);
 
-			Action<string, KMSelectable, Texture2D> addHomePageMethod = (Action<string, KMSelectable, Texture2D>)_modSelectorApi["AddHomePageMethod"];
+			Action<string, KMSelectable, Texture2D> addHomePageMethod = (Action<string, KMSelectable, Texture2D>)ModSelectorApi["AddHomePageMethod"];
 			addHomePageMethod("Dynamic Mission Generator", MissionCreationPagePrefab, ModSelectorIcon);
-		}
-
-		private void Awake()
-		{
-			RunButton.OnInteract += RunInteract;
-		}
-
-		private bool RunInteract()
-		{
-
-			return false;
 		}
 	}
 }

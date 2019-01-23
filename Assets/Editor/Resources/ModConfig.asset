@@ -13,8 +13,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: DynamicMissionGenerator
   title: Dynamic Mission Generator
-  description: 
-  version: 
+  description: This mod required Mod Selector to work, if you don't have it, this
+    mod does nothing.
+  version: 1.0
   outputFolder: C:\Program Files (x86)\Steam\SteamApps\common\Keep Talking and Nobody
     Explodes\mods
-  previewImage: {fileID: 0}
+  previewImage: {fileID: 2800000, guid: 83c2097b2316b5c4f8677cf098399300, type: 3}
