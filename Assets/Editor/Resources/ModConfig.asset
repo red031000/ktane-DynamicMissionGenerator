@@ -13,9 +13,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: DynamicMissionGenerator
   title: Dynamic Mission Generator
-  description: This mod required Mod Selector to work, if you don't have it, this
-    mod does nothing.
-  version: 1.0
+  description: "This mod requires Mod Selector to work, if you don't have it, this
+    mod does nothing.\r\n\r\nA tool to generate missions with certain modules/amounts
+    dynamically\r\n\r\nEnter the mission string into the input box, then click the
+    run button, if there's an error, a strike sound will play\r\n\r\nThe syntax for
+    the mission string is as follows:\r\n\r\n[code]<number of modules>;\"<module ID>\"[/code]\r\n\r\nTo
+    run multiple types of modules add a space and then add it's own entry\r\n\r\n[h1]Example
+    for Anagrams and Word Scramble[/h1]\r\n\r\n[code]2;\"AnagramsModule\" 2;\"WordScrambleModule\"[/code]\r\n\nYou
+    can add module to the same component pool by using the + key\nThis has the effect
+    of having a set number of modules, but which module that is will be random\nFor
+    example:\n\n[code]4;\"AnagramsModule+WordScrambleModule\"[/code]\n\nmay produce
+    3 anagrams, 1 word scramble, or 2 anagrams, 2 word scrambles etc.\n\r\nYou may
+    use the special ALL_NEEDY, ALL_SOLVABLE, ALL_MODS, ALL_VANILLA, ALL_MODS_NEEDY
+    and ALL_VANILLA_NEEDY pools as well, you may not use the + operator on these pools.\r\n\r\nThe
+    process will error if you reference a mod you don't have installed/enabled, or
+    if you don't reference at least one solvable module, or if you reference more
+    modules than can fit on a single bomb case.\r\n\r\nI recommend using [url=https://ktane.timwi.de/]ktane.timwi.de[/url]
+    to find the module IDs of the mods\r\n\r\nif you encounter any problems, do not
+    hesitate to contact me on the [url=https://discord.gg/Fv7YEDj]ktane discord[/url]
+    where my username and tag is red031000#2155"
+  version: 1.1
   outputFolder: C:\Program Files (x86)\Steam\SteamApps\common\Keep Talking and Nobody
     Explodes\mods
   previewImage: {fileID: 2800000, guid: 83c2097b2316b5c4f8677cf098399300, type: 3}

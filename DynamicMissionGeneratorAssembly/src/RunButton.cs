@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -35,6 +36,7 @@ namespace DynamicMissionGeneratorAssembly
 				return false;
 			if (string.IsNullOrEmpty(InputField.text))
 			{
+				Debug.Log("Empty");
 				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
 				return false;
 			}
@@ -42,6 +44,7 @@ namespace DynamicMissionGeneratorAssembly
 			bool success = ParseTextToMission(InputField.text, out KMMission mission);
 			if (!success)
 			{
+				Debug.Log("Returned no success");
 				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
 				return false;
 			}
@@ -54,248 +57,219 @@ namespace DynamicMissionGeneratorAssembly
 		private bool ParseTextToMission(string text, out KMMission mission)
 		{
 			mission = null;
-			List<Tuple<int, string>> tuples = new List<Tuple<int, string>>();
+			List<Tuple<int, string[]>> tuples = new List<Tuple<int, string[]>>();
 			try
 			{
-				string[] split1 = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-				foreach (string item in split1)
+				Match match = Regex.Match(text, @"(?:(\d+);""(\S+)"" ?)+");
+				if (match.Success)
 				{
-					string[] split2 = item.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
-					bool result = int.TryParse(split2[0], out int parsed);
-					if (!result)
-						return false;
+					Debug.Log("SUCCESS!");
+					Debug.Log("Group count: " + match.Groups.Count);
+					Debug.Log("Capture count: " + match.Groups[1].Captures.Count);
+					for (int i = 0; i < match.Groups[1].Captures.Count; i++)
+					{
+						Debug.Log("___MARKER3___");
+						Debug.Log(match.Groups[1].Captures[i].Value);
+						Debug.Log(match.Groups[2].Captures[i].Value);
+						if (!int.TryParse(match.Groups[1].Captures[i].Value, out int parsed))
+						{
+							Debug.Log("FAKE NEWS");
+							Debug.Log(match.Groups[1].Captures[i].Value);
+							return false;
+						}
 
-					tuples.Add(new Tuple<int, string>(parsed, split2[1]));
+						string[] string2 = match.Groups[2].Captures[i].Value.Split('+');
+						tuples.Add(new Tuple<int, string[]>(parsed, string2));
+					}
+				}
+				else
+				{
+					Debug.Log("NO SUCCESS");
+					return false;
 				}
 			}
-			catch
+			catch (Exception e)
 			{
+				Debug.Log(e.Message + Environment.NewLine + e.StackTrace);
 				return false;
 			}
 
 			bool marker = false;
-			foreach (Tuple<int, string> tuple in tuples)
+			foreach (Tuple<int, string[]> tuple in tuples)
 			{
-				bool marker2 = false;
-				if (((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]).Contains(tuple.Second) &&
-				    !((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"]).Contains(tuple.Second))
-					marker = true;
-				if (tuple.Second.EqualsAny("BigButton", "Venn", "Keypad", "Maze", "Memory", "Morse", "Password",
-					"Simon", "WhosOnFirst", "Wires", "WireSequence", "ALL_SOLVABLE"))
-					marker = true;
-				if (tuple.Second.EqualsAny("NeedyVentGas", "NeedyKnob", "NeedyCapacitor", "ALL_NEEDY"))
-					marker2 = true;
-				if (!(((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]).Contains(tuple.Second) && //mod not loaded as solvable
-				    !((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["AllNeedyModules"]).Contains(tuple.Second) || //and mod not loaded as needy
-					((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"]).Contains(tuple.Second) || //or mod is a disabled solvable
-					((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["DisabledNeedyModules"]).Contains(tuple.Second)) //or mod is a disabled needy
-					&& !marker && !marker2) //and it's not in the exclusion lists above
+				foreach (string item in tuple.Second)
+				{
+					Debug.Log("___MARKER2___");
+					Debug.Log(item);
+					bool marker2 = false;
+					bool marker3 = false;
+					if (((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]).Contains(item) &&
+					    !((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"]).Contains(item))
+						marker = true;
+					if (item.EqualsAny("BigButton", "Venn", "Keypad", "Maze", "Memory", "Morse", "Password",
+						"Simon", "WhosOnFirst", "Wires", "WireSequence", "ALL_SOLVABLE", "ALL_VANILLA", "ALL_MODS"))
+					{
+						marker = true;
+						marker3 = true;
+					}
+
+					if (item.EqualsAny("NeedyVentGas", "NeedyKnob", "NeedyCapacitor", "ALL_NEEDY", "ALL_VANILLA_NEEDY", "ALL_MODS_NEEDY"))
+						marker2 = true;
+					if ((!((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]).Contains(item) && //mod not loaded as solvable
+					    !((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["AllNeedyModules"]).Contains(item) || //and mod not loaded as needy
+						((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"]).Contains(item) || //or mod is a disabled solvable
+						((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["DisabledNeedyModules"]).Contains(item)) //or mod is a disabled needy
+						&& !marker3 && !marker2) //and it's not in the exclusion lists above
+						return false;
+				}
+
+				if ((tuple.Second.Contains("ALL_SOLVABLE") || tuple.Second.Contains("ALL_MODS") || tuple.Second.Contains("ALL_VANILLA")) && tuple.Second.Length != 1)
 					return false;
 			}
 
 			if (!marker)
-			{
 				return false;
-			}
-
+			
+			if (!tuples.Any(x => x.Second.Any(x2 => !x2.EqualsAny("NeedyVentGas", "NeedyKnob", "NeedyCapacitor", "ALL_NEEDY", "ALL_VANILLA_NEEDY", "ALL_MODS_NEEDY"))))
+				return false;
+				
 			mission = GenerateMission(tuples);
 
 			return mission != null;
 		}
 
-		private KMMission GenerateMission(IEnumerable<Tuple<int, string>> tuples)
+		private KMMission GenerateMission(IEnumerable<Tuple<int, string[]>> tuples)
 		{
 			int modules = 0;
-			int van = 0;
 			List<KMComponentPool> pools = new List<KMComponentPool>();
-			foreach (Tuple<int, string> tuple in tuples)
+			foreach (Tuple<int, string[]> tuple in tuples)
 			{
 				modules += tuple.First;
-				switch (tuple.Second)
+				KMComponentPool pool = new KMComponentPool
 				{
-					case "WireSequence":
-						KMComponentPool wsPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.WireSequence }
-						};
-						pools.Add(wsPool);
-						van += tuple.First;
-						break;
-					case "Wires":
-						KMComponentPool wPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.Wires }
-						};
-						pools.Add(wPool);
-						van += tuple.First;
-						break;
-					case "WhosOnFirst":
-						KMComponentPool wofPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.WhosOnFirst }
-						};
-						pools.Add(wofPool);
-						van += tuple.First;
-						break;
-					case "Simon":
-						KMComponentPool sPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.Simon }
-						};
-						pools.Add(sPool);
-						van += tuple.First;
-						break;
-					case "NeedyVentGas":
-						KMComponentPool vgPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.NeedyVentGas }
-						};
-						pools.Add(vgPool);
-						van += tuple.First;
-						break;
-					case "Password":
-						KMComponentPool pwPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.Password }
-						};
-						pools.Add(pwPool);
-						van += tuple.First;
-						break;
-					case "Morse":
-						KMComponentPool mcPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.Morse }
-						};
-						pools.Add(mcPool);
-						van += tuple.First;
-						break;
-					case "Memory":
-						KMComponentPool mPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.Memory }
-						};
-						pools.Add(mPool);
-						van += tuple.First;
-						break;
-					case "Maze":
-						KMComponentPool maPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.Maze }
-						};
-						pools.Add(maPool);
-						van += tuple.First;
-						break;
-					case "NeedyKnob":
-						KMComponentPool kPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.NeedyKnob }
-						};
-						pools.Add(kPool);
-						van += tuple.First;
-						break;
-					case "Keypad":
-						KMComponentPool kpPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.Keypad }
-						};
-						pools.Add(kpPool);
-						van += tuple.First;
-						break;
-					case "Venn":
-						KMComponentPool vPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.Venn }
-						};
-						pools.Add(vPool);
-						van += tuple.First;
-						break;
-					case "NeedyCapacitor":
-						KMComponentPool cPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.NeedyCapacitor }
-						};
-						pools.Add(cPool);
-						van += tuple.First;
-						break;
-					case "BigButton":
-						KMComponentPool bbPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ComponentTypes = new List<KMComponentPool.ComponentTypeEnum> { KMComponentPool.ComponentTypeEnum.BigButton }
-						};
-						pools.Add(bbPool);
-						van += tuple.First;
-						break;
-					case "ALL_SOLVABLE":
-						KMComponentPool asPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base | KMComponentPool.ComponentSource.Mods,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_SOLVABLE,
-						};
-						pools.Add(asPool);
-						break;
-					case "ALL_NEEDY":
-						KMComponentPool anPool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Base | KMComponentPool.ComponentSource.Mods,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_NEEDY,
-						};
-						pools.Add(anPool);
-						break;
-					default:
-						KMComponentPool pool = new KMComponentPool
-						{
-							AllowedSources = KMComponentPool.ComponentSource.Mods,
-							Count = tuple.First,
-							SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None,
-							ModTypes = new List<string> {tuple.Second}
-						};
-						pools.Add(pool);
-						break;
+					Count = tuple.First,
+					ComponentTypes = new List<KMComponentPool.ComponentTypeEnum>(),
+					ModTypes = new List<string>()
+				};
+				foreach (string item in tuple.Second)
+				{
+					Debug.Log("___MARKER___");
+					Debug.Log(item);
+					switch (item)
+					{
+						case "WireSequence":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.WireSequence);
+							break;
+						case "Wires":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Wires);
+							break;
+						case "WhosOnFirst":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.WhosOnFirst);
+							break;
+						case "Simon":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Simon);
+							break;
+						case "NeedyVentGas":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.NeedyVentGas);
+							break;
+						case "Password":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Password);
+							break;
+						case "Morse":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Morse);
+							break;
+						case "Memory":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Memory);
+							break;
+						case "Maze":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Maze);
+							break;
+						case "NeedyKnob":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.NeedyKnob);
+							break;
+						case "Keypad":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Keypad);
+							break;
+						case "Venn":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Venn);
+							break;
+						case "NeedyCapacitor":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.NeedyCapacitor);
+							break;
+						case "BigButton":
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.BigButton);
+							break;
+						case "ALL_SOLVABLE":
+							pool.AllowedSources = KMComponentPool.ComponentSource.Base | KMComponentPool.ComponentSource.Mods;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_SOLVABLE;
+							break;
+						case "ALL_NEEDY":
+							pool.AllowedSources = KMComponentPool.ComponentSource.Base | KMComponentPool.ComponentSource.Mods;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_NEEDY;
+							break;
+						case "ALL_VANILLA":
+							pool.AllowedSources = KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_SOLVABLE;
+							break;
+						case "ALL_MODS":
+							pool.AllowedSources = KMComponentPool.ComponentSource.Mods;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_SOLVABLE;
+							break;
+						case "ALL_VANILLA_NEEDY":
+							pool.AllowedSources = KMComponentPool.ComponentSource.Base;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_NEEDY;
+							break;
+						case "ALL_MODS_NEEDY":
+							pool.AllowedSources = KMComponentPool.ComponentSource.Mods;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_NEEDY;
+							break;
+						default:
+							pool.AllowedSources |= KMComponentPool.ComponentSource.Mods;
+							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.None;
+							pool.ModTypes.Add(item);
+							break;
+					}
 				}
+
+				if (pool.ModTypes.Count == 0)
+				{
+					pool.ModTypes = null;
+				}
+
+				if (pool.ComponentTypes.Count == 0)
+				{
+					pool.ComponentTypes = null;
+				}
+
+				pools.Add(pool);
 			}
 
 			KMMission mission = ScriptableObject.CreateInstance<KMMission>();
@@ -304,7 +278,7 @@ namespace DynamicMissionGeneratorAssembly
 			mission.GeneratorSetting = new KMGeneratorSetting
 			{
 				ComponentPools = pools,
-				TimeLimit = modules * 120 - van * 60,
+				TimeLimit = modules * 120,
 				NumStrikes = Math.Max(3, modules / 12)
 			};
 			return modules > GetMaxModules() ? null : mission;
