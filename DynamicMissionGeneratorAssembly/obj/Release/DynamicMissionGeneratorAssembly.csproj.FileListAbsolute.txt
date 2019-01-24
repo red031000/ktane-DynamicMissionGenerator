@@ -1,0 +1,5 @@
+D:\KTANE modding\Dynamic Mission Generator\Assets\Plugins\Managed\DynamicMissionGeneratorAssembly.dll
+D:\KTANE modding\Dynamic Mission Generator\Assets\Plugins\Managed\DynamicMissionGeneratorAssembly.pdb
+D:\KTANE modding\Dynamic Mission Generator\DynamicMissionGeneratorAssembly\obj\Release\DynamicMissionGeneratorAssembly.csproj.CoreCompileInputs.cache
+D:\KTANE modding\Dynamic Mission Generator\DynamicMissionGeneratorAssembly\obj\Release\DynamicMissionGeneratorAssembly.dll
+D:\KTANE modding\Dynamic Mission Generator\DynamicMissionGeneratorAssembly\obj\Release\DynamicMissionGeneratorAssembly.pdb

@@ -36,7 +36,6 @@ namespace DynamicMissionGeneratorAssembly
 				return false;
 			if (string.IsNullOrEmpty(InputField.text))
 			{
-				Debug.Log("Empty");
 				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
 				return false;
 			}
@@ -44,7 +43,6 @@ namespace DynamicMissionGeneratorAssembly
 			bool success = ParseTextToMission(InputField.text, out KMMission mission);
 			if (!success)
 			{
-				Debug.Log("Returned no success");
 				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
 				return false;
 			}
@@ -63,30 +61,16 @@ namespace DynamicMissionGeneratorAssembly
 				Match match = Regex.Match(text, @"(?:(\d+);""(\S+)"" ?)+");
 				if (match.Success)
 				{
-					Debug.Log("SUCCESS!");
-					Debug.Log("Group count: " + match.Groups.Count);
-					Debug.Log("Capture count: " + match.Groups[1].Captures.Count);
 					for (int i = 0; i < match.Groups[1].Captures.Count; i++)
 					{
-						Debug.Log("___MARKER3___");
-						Debug.Log(match.Groups[1].Captures[i].Value);
-						Debug.Log(match.Groups[2].Captures[i].Value);
 						if (!int.TryParse(match.Groups[1].Captures[i].Value, out int parsed))
-						{
-							Debug.Log("FAKE NEWS");
-							Debug.Log(match.Groups[1].Captures[i].Value);
 							return false;
-						}
 
 						string[] string2 = match.Groups[2].Captures[i].Value.Split('+');
 						tuples.Add(new Tuple<int, string[]>(parsed, string2));
 					}
 				}
-				else
-				{
-					Debug.Log("NO SUCCESS");
-					return false;
-				}
+				else return false;
 			}
 			catch (Exception e)
 			{
@@ -99,8 +83,6 @@ namespace DynamicMissionGeneratorAssembly
 			{
 				foreach (string item in tuple.Second)
 				{
-					Debug.Log("___MARKER2___");
-					Debug.Log(item);
 					bool marker2 = false;
 					bool marker3 = false;
 					if (((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]).Contains(item) &&
@@ -153,8 +135,6 @@ namespace DynamicMissionGeneratorAssembly
 				};
 				foreach (string item in tuple.Second)
 				{
-					Debug.Log("___MARKER___");
-					Debug.Log(item);
 					switch (item)
 					{
 						case "WireSequence":
@@ -260,14 +240,10 @@ namespace DynamicMissionGeneratorAssembly
 				}
 
 				if (pool.ModTypes.Count == 0)
-				{
 					pool.ModTypes = null;
-				}
 
 				if (pool.ComponentTypes.Count == 0)
-				{
 					pool.ComponentTypes = null;
-				}
 
 				pools.Add(pool);
 			}
