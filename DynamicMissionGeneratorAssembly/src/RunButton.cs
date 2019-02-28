@@ -83,26 +83,41 @@ namespace DynamicMissionGeneratorAssembly
 			{
 				foreach (string item in tuple.Second)
 				{
-					bool marker2 = false;
-					bool marker3 = false;
-					if (((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]).Contains(item) &&
-					    !((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"]).Contains(item))
-						marker = true;
-					if (item.EqualsAny("BigButton", "Venn", "Keypad", "Maze", "Memory", "Morse", "Password",
-						"Simon", "WhosOnFirst", "Wires", "WireSequence", "ALL_SOLVABLE", "ALL_VANILLA", "ALL_MODS"))
+					try
 					{
-						marker = true;
-						marker3 = true;
-					}
+						bool marker2 = false;
+						bool marker3 = false;
+						if (((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"])
+						    .Contains(item) &&
+						    !((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"])
+							    .Contains(item))
+							marker = true;
+						if (item.EqualsAny("BigButton", "Venn", "Keypad", "Maze", "Memory", "Morse", "Password",
+							"Simon", "WhosOnFirst", "Wires", "WireSequence", "ALL_SOLVABLE", "ALL_VANILLA", "ALL_MODS"))
+						{
+							marker = true;
+							marker3 = true;
+						}
 
-					if (item.EqualsAny("NeedyVentGas", "NeedyKnob", "NeedyCapacitor", "ALL_NEEDY", "ALL_VANILLA_NEEDY", "ALL_MODS_NEEDY"))
-						marker2 = true;
-					if ((!((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]).Contains(item) && //mod not loaded as solvable
-					    !((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["AllNeedyModules"]).Contains(item) || //and mod not loaded as needy
-						((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"]).Contains(item) || //or mod is a disabled solvable
-						((IEnumerable<string>)DynamicMissionGenerator.ModSelectorApi["DisabledNeedyModules"]).Contains(item)) //or mod is a disabled needy
-						&& !marker3 && !marker2) //and it's not in the exclusion lists above
+						if (item.EqualsAny("NeedyVentGas", "NeedyKnob", "NeedyCapacitor", "ALL_NEEDY",
+							"ALL_VANILLA_NEEDY", "ALL_MODS_NEEDY"))
+							marker2 = true;
+						if ((!((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"])
+							     .Contains(item) && //mod not loaded as solvable
+						     !((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllNeedyModules"])
+							     .Contains(item) || //and mod not loaded as needy
+						     ((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"])
+						     .Contains(item) || //or mod is a disabled solvable
+						     ((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["DisabledNeedyModules"])
+						     .Contains(item)) //or mod is a disabled needy
+						    && !marker3 && !marker2) //and it's not in the exclusion lists above
+							return false;
+					}
+					catch (Exception e)
+					{
+						Debug.Log(e.Message + Environment.NewLine + e.StackTrace);
 						return false;
+					}
 				}
 
 				if ((tuple.Second.Contains("ALL_SOLVABLE") || tuple.Second.Contains("ALL_MODS") || tuple.Second.Contains("ALL_VANILLA")) && tuple.Second.Length != 1)
