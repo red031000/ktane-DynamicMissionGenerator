@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -46,6 +47,10 @@ namespace DynamicMissionGeneratorAssembly
 			_gameplayStateType = ReflectionHelper.FindType("GameplayState");
 			if (_gameplayStateType != null)
 				_gameplayroomPrefabOverrideField = _gameplayStateType.GetField("GameplayRoomPrefabOverride", BindingFlags.Public | BindingFlags.Static);
+
+			// KMModSettings is not used here because this isn't strictly a configuration option.
+			string path = Path.Combine(Application.persistentDataPath, "LastDynamicMission.txt");
+			if (File.Exists(path)) InputField.text = File.ReadAllText(path);
 		}
 
 		public void Update()
@@ -124,6 +129,15 @@ namespace DynamicMissionGeneratorAssembly
 				return false;
 			}
 
+			try
+			{
+				File.WriteAllText(Path.Combine(Application.persistentDataPath, "LastDynamicMission.txt"), InputField.text);
+			}
+			catch (Exception ex)
+			{
+				Debug.LogError("[Dynamic Mission Generator] Could not write LastDynamicMission.txt");
+				Debug.LogException(ex, this);
+			}
 			GameCommands.StartMission(mission, "-1");
 
 			return false;
@@ -202,14 +216,14 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			var item = Instantiate(ModuleListItemPrefab, ModuleList);
 			if (listItems.Count % 2 != 0) SetNormalColour(item.GetComponent<Button>(), new Color(0.875f, 0.875f, 0.875f));
-			if (addClickEvent) item.Click += RunButton_Click;
+			if (addClickEvent) item.Click += ModuleListItem_Click;
 			item.Name = text;
 			item.ID = id;
 			listItems.Add(item.gameObject);
 			return item;
 		}
 
-		private void RunButton_Click(object sender, EventArgs e)
+		private void ModuleListItem_Click(object sender, EventArgs e)
 		{
 			string id = ((ModuleListItem) sender).ID;
 			tabProcessing = true;

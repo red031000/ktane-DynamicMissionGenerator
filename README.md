@@ -6,7 +6,7 @@ This service relies on [Mod Selector](https://steamcommunity.com/sharedfiles/fil
 
 To start a mission, enter a mission string into the text box, then press Enter or click the Run button. A mission string consists of a combination of the following tokens, separated by spaces.
 
-* `[number]*[module ID]` – adds the specified number of the specified type of module. For compatibility, `;` may be used in place of `*`. The number may be omitted to add a single module. If the module ID contains spaces, enclose it in quotation marks. If you specify multiple module IDs separated with `,` or `+`, modules will be selected at random from those types. The following special tokens may be used in place of a module ID list:
+* `[number]*[module ID]` – adds the specified number of the specified type of module. For compatibility, `;` may be used in place of `*`. The number and `*` may be omitted to add a single module. If the module ID contains spaces, enclose it in quotation marks. If you specify multiple module IDs separated with `,` or `+`, modules will be selected at random from those types. The following special tokens may be used in place of a module ID list:
   * `ALL_SOLVABLE` – any regular module
   * `ALL_NEEDY` – any needy module
   * `ALL_VANILLA` – any vanilla regular module
