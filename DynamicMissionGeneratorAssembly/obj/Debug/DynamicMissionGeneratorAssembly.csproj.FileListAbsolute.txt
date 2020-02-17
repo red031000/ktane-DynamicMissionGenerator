@@ -1,6 +1,0 @@
-D:\KTANE modding\Dynamic Mission Generator\Assets\Plugins\Managed\DynamicMissionGeneratorAssembly.dll
-D:\KTANE modding\Dynamic Mission Generator\Assets\Plugins\Managed\DynamicMissionGeneratorAssembly.pdb
-D:\KTANE modding\Dynamic Mission Generator\DynamicMissionGeneratorAssembly\obj\Debug\DynamicMissionGeneratorAssembly.csprojAssemblyReference.cache
-D:\KTANE modding\Dynamic Mission Generator\DynamicMissionGeneratorAssembly\obj\Debug\DynamicMissionGeneratorAssembly.csproj.CoreCompileInputs.cache
-D:\KTANE modding\Dynamic Mission Generator\DynamicMissionGeneratorAssembly\obj\Debug\DynamicMissionGeneratorAssembly.dll
-D:\KTANE modding\Dynamic Mission Generator\DynamicMissionGeneratorAssembly\obj\Debug\DynamicMissionGeneratorAssembly.pdb
