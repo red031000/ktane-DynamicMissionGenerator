@@ -63,6 +63,6 @@ MonoBehaviour:
   m_Script: {fileID: -1789008462, guid: 6a620cae91c3f7f4287952f7f4b3027f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MissionCreationPagePrefab: {fileID: 114660747233576628, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
+  MissionCreationPagePrefab: {fileID: 114463166849620854, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
     type: 2}
   ModSelectorIcon: {fileID: 2800000, guid: 83c2097b2316b5c4f8677cf098399300, type: 3}
