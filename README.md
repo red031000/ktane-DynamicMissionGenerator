@@ -13,6 +13,8 @@ To start a mission, enter a mission string into the text box, then press Enter o
   * `ALL_MODS` – any mod regular module
   * `ALL_VANILLA_NEEDY` – any vanilla needy module
   * `ALL_MODS_NEEDY` – any mod needy module
+  * `profile:[name]` – any regular module enabled by the specified profile (and not disabled by other profiles)
+  * `needyprofile:[name]` – any needy module enabled by the specified profile (and not disabled by other profiles)
 * `[h]:[m]:[s]` – sets the starting bomb time. The hours may be omitted. The default is 2 minutes per regular module.
 * `[number]X` – sets the strike limit. The default is 1 per 12 regular modules with a minimum of 3.
 * `needyactivationtime:[seconds]` – sets the time before all needy modules activate. The default is 90 seconds.

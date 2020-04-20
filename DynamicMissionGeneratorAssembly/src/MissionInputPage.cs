@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -34,6 +35,7 @@ namespace DynamicMissionGeneratorAssembly
 				(?:(?<Count>\d{1,9})[;*])?  # Module pool count
 				(?<ID>(?:[^\s""]|""[^""]*(?:""|$))+)  # Module IDs
 			)?(?!\S)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace);
+		private readonly Dictionary<string, Profile> profiles = new Dictionary<string, Profile>();
 
 		private int tabListIndex = -1;
 		private int tabCursorPosition = -1;
@@ -56,6 +58,7 @@ namespace DynamicMissionGeneratorAssembly
 		public void OnEnable()
 		{
 			InitModules();
+			LoadProfiles();
 		}
 
 		public void Update()
@@ -320,6 +323,62 @@ namespace DynamicMissionGeneratorAssembly
 			moduleData.Sort((a, b) => a.ModuleType.CompareTo(b.ModuleType));
 		}
 
+		private void LoadProfiles()
+		{
+			profiles.Clear();
+			string path = Path.Combine(Application.persistentDataPath, "ModProfiles");
+			if (!Directory.Exists(path)) return;
+
+			var allSolvableModules = new HashSet<string>((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]);
+			var allNeedyModules = new HashSet<string>((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllNeedyModules"]);
+
+			try
+			{
+				foreach (string file in Directory.GetFiles(path, "*.json"))
+				{
+					try
+					{
+						using var reader = new StreamReader(file);
+						var profile = new JsonSerializer().Deserialize<Profile>(new JsonTextReader(reader));
+						if (profile.DisabledList == null)
+						{
+							Debug.LogWarning($"[Profile Revealer] Could not load profile {Path.GetFileName(file)}");
+							continue;
+						}
+
+						string profileName = Path.GetFileNameWithoutExtension(file);
+						profiles.Add(profileName, profile);
+						// Don't list defuser profiles that disable no modules as completion options.
+						bool any = false;
+						if (profile.Operation == ProfileType.Expert || profile.DisabledList.Where(m => allSolvableModules.Contains(m)).Any())
+						{
+							any = true;
+							moduleData.Add(new ModuleData("profile:" + profileName, profileName + " (solvable modules enabled by profile)"));
+						}
+						if (profile.Operation == ProfileType.Expert || profile.DisabledList.Where(m => allNeedyModules.Contains(m)).Any())
+						{
+							any = true;
+							moduleData.Add(new ModuleData("needyprofile:" + profileName, profileName + " (needy modules enabled by profile)"));
+						}
+						if (!any)
+						{
+							Debug.Log($"[Dynamic Mission Generator] Not listing {profileName} as it is a defuser profile that seems to disable no modules.");
+						}
+					}
+					catch (Exception ex)
+					{
+						Debug.LogWarning($"[Dynamic Mission Generator] Could not load profile {Path.GetFileName(file)}");
+						Debug.LogException(ex, this);
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				Debug.LogWarning($"[Dynamic Mission Generator] Could not load profiles");
+				Debug.LogException(ex, this);
+			}
+		}
+
 		private bool ParseTextToMission(string text, out KMMission mission, out List<string> messages)
 		{
 			messages = new List<string>();
@@ -331,6 +390,11 @@ namespace DynamicMissionGeneratorAssembly
 				mission = null;
 				return false;
 			}
+
+			var allSolvableModules = new HashSet<string>((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]);
+			var allNeedyModules = new HashSet<string>((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllNeedyModules"]);
+			var enabledSolvableModules = new HashSet<string>(allSolvableModules.Except((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"]));
+			var enabledNeedyModules = new HashSet<string>(allNeedyModules.Except((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["DisabledNeedyModules"]));
 
 			bool timeSpecified = false, strikesSpecified = false, anySolvableModules = false;
 			mission = ScriptableObject.CreateInstance<KMMission>();
@@ -428,8 +492,35 @@ namespace DynamicMissionGeneratorAssembly
 							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_NEEDY;
 							break;
 						default:
-							foreach (string id in list.Split(',', '+').Select(s => s.Trim()))
+							bool useProfile = list.StartsWith("profile:", StringComparison.InvariantCultureIgnoreCase);
+							bool useNeedyProfile = !useProfile && list.StartsWith("needyprofile:", StringComparison.InvariantCultureIgnoreCase);
+
+							if (useProfile || useNeedyProfile)
 							{
+								string profileName = list.Substring(useNeedyProfile ? 13 : 8);
+								if (!profiles.TryGetValue(profileName, out var profile))
+								{
+									messages.Add($"No profile named '{profileName}' was found.");
+								}
+								else
+								{
+									Debug.Log("[Dynamic Mission Generator] Disabled list: " + string.Join(", ", profile.DisabledList.ToArray()));
+									pool.ModTypes.AddRange((useNeedyProfile ? enabledNeedyModules : enabledSolvableModules).Except(profile.DisabledList));
+									if (pool.ModTypes.Count == 0)
+									{
+										messages.Add($"Profile '{profileName}' enables no valid modules.");
+										allSolvable = false;
+									}
+									else
+									{
+										allSolvable = useProfile;
+									}
+								}
+							}
+							else
+							{
+								foreach (string id in list.Split(',', '+').Select(s => s.Trim()))
+								{
 									switch (id)
 									{
 										case "WireSequence": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.WireSequence); break;
@@ -456,20 +547,18 @@ namespace DynamicMissionGeneratorAssembly
 											pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.NeedyKnob);
 											break;
 										default:
-											if (!((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]).Contains(id) &&
-												!((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllNeedyModules"]).Contains(id))
+											if (!allSolvableModules.Contains(id) && !allNeedyModules.Contains(id))
 												messages.Add($"'{id}' is an unknown module ID.");
-											else if (((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"]).Contains(id) ||
-												((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["DisabledNeedyModules"]).Contains(id))
+											else if (!enabledSolvableModules.Contains(id) && !enabledNeedyModules.Contains(id))
 												messages.Add($"'{id}' is disabled.");
 											else
 											{
-												if (((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllNeedyModules"]).Contains(id))
-													allSolvable = false;
+												allSolvable = allSolvable && allSolvableModules.Contains(id);
 												pool.ModTypes.Add(id);
 											}
 											break;
 									}
+								}
 							}
 							break;
 					}
@@ -485,7 +574,7 @@ namespace DynamicMissionGeneratorAssembly
 			if (!anySolvableModules) messages.Add("No regular modules");
 			mission.GeneratorSetting.ComponentPools = pools;
 			if (mission.GeneratorSetting.GetComponentCount() > GetMaxModules())
-				messages.Add($"Too many modules for any available bomb casing ({mission.GeneratorSetting.GetComponentCount()} specified; {GetMaxModules()} possible).");
+				messages.Add($"Too many modules for any bomb casing ({mission.GeneratorSetting.GetComponentCount()} > {GetMaxModules()}).");
 
 			if (messages.Count > 0)
 			{
@@ -511,5 +600,17 @@ namespace DynamicMissionGeneratorAssembly
 		private static FieldInfo _gameplayroomPrefabOverrideField;
 
 		private static Type _elevatorRoomType;
+
+		private struct Profile
+		{
+			public HashSet<string> DisabledList;
+			public ProfileType Operation;
+		}
+
+		private enum ProfileType
+		{
+			Expert,
+			Defuser
+		}
 	}
 }
