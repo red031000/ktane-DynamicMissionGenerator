@@ -53,6 +53,11 @@ namespace DynamicMissionGeneratorAssembly
 			if (File.Exists(path)) InputField.text = File.ReadAllText(path);
 		}
 
+		public void OnEnable()
+		{
+			InitModules();
+		}
+
 		public void Update()
 		{
 			if (EventSystem.current.currentSelectedGameObject == InputField.gameObject)
@@ -159,7 +164,6 @@ namespace DynamicMissionGeneratorAssembly
 
 			foreach (var item in listItems) Destroy(item);
 			listItems.Clear();
-			if (moduleData.Count == 0) InitModules();
 
 			var matches = tokenRegex.Matches(newText.Substring(0, InputField.caretPosition));
 			if (matches.Count > 0)
@@ -261,6 +265,7 @@ namespace DynamicMissionGeneratorAssembly
 
 		private static void InitModules()
 		{
+			moduleData.Clear();
 			moduleData.Add(new ModuleData("ALL_SOLVABLE", "[All solvable modules]"));
 			moduleData.Add(new ModuleData("ALL_NEEDY", "[All needy modules]"));
 			moduleData.Add(new ModuleData("ALL_VANILLA", "[All vanilla solvable modules]"));
