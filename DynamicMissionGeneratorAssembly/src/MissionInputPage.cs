@@ -263,7 +263,10 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			moduleData.Add(new ModuleData("ALL_SOLVABLE", "[All solvable modules]"));
 			moduleData.Add(new ModuleData("ALL_NEEDY", "[All needy modules]"));
-			moduleData.Add(new ModuleData("ALL_MODS", "[All mod modules]"));
+			moduleData.Add(new ModuleData("ALL_VANILLA", "[All vanilla solvable modules]"));
+			moduleData.Add(new ModuleData("ALL_MODS", "[All mod solvable modules]"));
+			moduleData.Add(new ModuleData("ALL_VANILLA_NEEDY", "[All vanilla needy modules]"));
+			moduleData.Add(new ModuleData("ALL_MODS_NEEDY", "[All mod needy modules]"));
 			moduleData.Add(new ModuleData("frontonly", "[Front face only]"));
 			moduleData.Add(new ModuleData("nopacing", "[Disable pacing events]"));
 			moduleData.Add(new ModuleData("widgets:", "[Set widget count]"));
