@@ -22,16 +22,17 @@ namespace DynamicMissionGeneratorAssembly
 		public RectTransform ModuleList;
 		public Scrollbar Scrollbar;
 		private readonly List<GameObject> listItems = new List<GameObject>();
+		private bool factoryEnabled;
 
 		public KMAudio Audio;
 		public KMGameInfo GameInfo;
 
-		private static readonly List<ModuleData> moduleData = new List<ModuleData>();
+		private readonly List<ModuleData> moduleData = new List<ModuleData>();
 		private static readonly Regex tokenRegex = new Regex(@"
 			\G(?:^\s*|\s+)()(?:  # Group 1 marks the position after whitespace.
 				(?:(?<Hr>\d{1,9}):)?(?<Min>\d{1,9}):(?<Sec>\d{1,9})|  # Bomb time
 				(?<Strikes>\d{1,9})X\b|  # Strike limit
-				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly)(?:\:(?<Value>\d{0,9}))?|  # Setting
+				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory)(?:\:(?<Value>\S*))?|  # Setting
 				(?:(?<Count>\d{1,9})[;*])?  # Module pool count
 				(?<ID>(?:[^\s""]|""[^""]*(?:""|$))+)  # Module IDs
 			)?(?!\S)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace);
@@ -41,6 +42,19 @@ namespace DynamicMissionGeneratorAssembly
 		private int tabCursorPosition = -1;
 		private string tabStub;
 		private bool tabProcessing;
+
+		private static readonly ModuleData[] factoryModeList = new[]
+		{
+			new ModuleData("static", "Factory: Static"),
+			new ModuleData("finite", "Factory: Finite"),
+			new ModuleData("finitegtime", "Factory: Finite + global time"),
+			new ModuleData("finitegstrikes", "Factory: Finite + global strikes"),
+			new ModuleData("finitegtimestrikes", "Factory: Finite + global time and strikes"),
+			new ModuleData("infinite", "Factory: Infinite"),
+			new ModuleData("infinitegtime", "Factory: Infinite + global time"),
+			new ModuleData("infinitegstrikes", "Factory: Infinite + global strikes"),
+			new ModuleData("infinitegtimestrikes", "Factory: Infinite + global time and strikes")
+		};
 
 		public void Start()
 		{
@@ -59,6 +73,7 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			InitModules();
 			LoadProfiles();
+			factoryEnabled = GameObject.Find("FactoryService(Clone)") != null;
 		}
 
 		public void Update()
@@ -185,8 +200,30 @@ namespace DynamicMissionGeneratorAssembly
 				}
 				else if (lastMatch.Groups["Setting"].Success)
 				{
-					var item = AddListItem("", lastMatch.Groups["Setting"].Value + ": " + lastMatch.Groups["Value"].Value, false);
-					item.HighlightName(lastMatch.Groups["Setting"].Value.Length + 2, item.Name.Length - (lastMatch.Groups["Setting"].Value.Length + 2));
+					if (lastMatch.Groups["Setting"].Value.Equals("factory", StringComparison.InvariantCultureIgnoreCase))
+					{
+						if (factoryEnabled)
+						{
+							foreach (var m in factoryModeList)
+							{
+								if (m.ModuleType.StartsWith(lastMatch.Groups["Value"].Value, StringComparison.InvariantCultureIgnoreCase))
+								{
+									var item = AddListItem("factory:" + m.ModuleType, m.DisplayName, true);
+									item.HighlightID(0, lastMatch.Groups["Value"].Length + 8);
+								}
+							}
+						}
+						else
+						{
+							var item = AddListItem(lastMatch.Groups["Setting"].Value + ":" + lastMatch.Groups["Value"].Value, "[Factory is not enabled]", false);
+							item.HighlightID(0, item.ID.Length);
+						}
+					}
+					else
+					{
+						var item = AddListItem("", lastMatch.Groups["Setting"].Value + ": " + lastMatch.Groups["Value"].Value, false);
+						item.HighlightName(lastMatch.Groups["Setting"].Value.Length + 2, item.Name.Length - (lastMatch.Groups["Setting"].Value.Length + 2));
+					}
 				}
 				else if (lastMatch.Groups["ID"].Success)
 				{
@@ -266,7 +303,7 @@ namespace DynamicMissionGeneratorAssembly
 			else TextChanged(InputField.text);
 		}
 
-		private static void InitModules()
+		private void InitModules()
 		{
 			moduleData.Clear();
 			moduleData.Add(new ModuleData("ALL_SOLVABLE", "[All solvable modules]"));
@@ -279,6 +316,7 @@ namespace DynamicMissionGeneratorAssembly
 			moduleData.Add(new ModuleData("nopacing", "[Disable pacing events]"));
 			moduleData.Add(new ModuleData("widgets:", "[Set widget count]"));
 			moduleData.Add(new ModuleData("needyactivationtime:", "[Set needy activation time in seconds]"));
+			if (factoryEnabled) moduleData.Add(new ModuleData("factory:", "[Set Factory mode]"));
 			moduleData.Add(new ModuleData("Wires", "Wires"));
 			moduleData.Add(new ModuleData("Keypad", "Keypad"));
 			moduleData.Add(new ModuleData("Memory", "Memory"));
@@ -397,6 +435,7 @@ namespace DynamicMissionGeneratorAssembly
 			var enabledNeedyModules = new HashSet<string>(allNeedyModules.Except((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["DisabledNeedyModules"]));
 
 			bool timeSpecified = false, strikesSpecified = false, anySolvableModules = false;
+			int? factoryMode = null;
 			mission = ScriptableObject.CreateInstance<KMMission>();
 			mission.PacingEventsEnabled = true;
 			mission.GeneratorSetting = new KMGeneratorSetting();
@@ -448,6 +487,29 @@ namespace DynamicMissionGeneratorAssembly
 							break;
 						case "nopacing": mission.PacingEventsEnabled = false; break;
 						case "frontonly": mission.GeneratorSetting.FrontFaceOnly = true; break;
+						case "factory":
+							if (factoryMode.HasValue) messages.Add("Factory mode specified multiple times");
+							else if (!factoryEnabled) messages.Add("Factory does not seem to be enabled");
+							else
+							{
+								for (factoryMode = 0; factoryMode < factoryModeList.Length; ++factoryMode)
+								{
+									if (factoryModeList[factoryMode.Value].ModuleType.Equals(match.Groups["Value"].Value, StringComparison.InvariantCultureIgnoreCase)) break;
+								}
+								if (factoryMode >= factoryModeList.Length)
+								{
+									messages.Add("Invalid factory mode");
+								}
+								else
+								{
+									pools.Add(new KMComponentPool()
+									{
+										ModTypes = new List<string>() { "Factory Mode" },
+										Count = factoryMode.Value
+									});
+								}
+							}
+							break;
 					}
 				}
 				else if (match.Groups["ID"].Success)
@@ -572,8 +634,8 @@ namespace DynamicMissionGeneratorAssembly
 			}
 
 			if (!anySolvableModules) messages.Add("No regular modules");
-			mission.GeneratorSetting.ComponentPools = pools;
-			if (mission.GeneratorSetting.GetComponentCount() > GetMaxModules())
+			mission.GeneratorSetting.ComponentPools.AddRange(pools);
+			if (mission.GeneratorSetting.GetComponentCount() - (factoryMode ?? 0) > GetMaxModules())
 				messages.Add($"Too many modules for any bomb casing ({mission.GeneratorSetting.GetComponentCount()} > {GetMaxModules()}).");
 
 			if (messages.Count > 0)
