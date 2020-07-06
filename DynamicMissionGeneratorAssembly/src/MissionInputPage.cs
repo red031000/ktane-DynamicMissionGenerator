@@ -21,6 +21,7 @@ namespace DynamicMissionGeneratorAssembly
 		public ModuleListItem ModuleListItemPrefab;
 		public RectTransform ModuleList;
 		public Scrollbar Scrollbar;
+		public RectTransform ScrollView;
 		private readonly List<GameObject> listItems = new List<GameObject>();
 		private bool factoryEnabled;
 
@@ -42,6 +43,9 @@ namespace DynamicMissionGeneratorAssembly
 		private int tabCursorPosition = -1;
 		private string tabStub;
 		private bool tabProcessing;
+		private int repositionScrollView;
+		private Vector2 oldMousePosition;
+		private float hoverDelay;
 
 		private static readonly ModuleData[] factoryModeList = new[]
 		{
@@ -55,6 +59,8 @@ namespace DynamicMissionGeneratorAssembly
 			new ModuleData("infinitegstrikes", "Factory: Infinite + global strikes"),
 			new ModuleData("infinitegtimestrikes", "Factory: Infinite + global time and strikes")
 		};
+
+		private static FieldInfo cursorVertsField = typeof(InputField).GetField("m_CursorVerts", BindingFlags.NonPublic | BindingFlags.Instance);
 
 		public void Start()
 		{
@@ -80,7 +86,7 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			if (EventSystem.current.currentSelectedGameObject == InputField.gameObject)
 			{
-				if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+				if ((Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)) && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
 					RunInteract();
 				if (Input.GetKeyDown(KeyCode.Tab) && listItems.Count > 0)
 				{
@@ -116,6 +122,90 @@ namespace DynamicMissionGeneratorAssembly
 						Scrollbar.value = Math.Min(1, 1 - offset / limit);
 					}
 				}
+
+				var mousePosition = (Vector2) Input.mousePosition;
+				if (mousePosition != oldMousePosition)
+				{
+					oldMousePosition = mousePosition;
+					hoverDelay = 0.5f;
+					InputField.transform.Find("Tooltip").gameObject.SetActive(false);
+				}
+
+				if (hoverDelay > 0)
+				{
+					hoverDelay -= Time.deltaTime;
+					if (hoverDelay <= 0)
+					{
+						hoverDelay = 0;
+						var rectTransform = (RectTransform) InputField.transform;
+						if (RectTransformUtility.ScreenPointToLocalPointInRectangle(rectTransform, mousePosition, Camera.current, out var position2) &&
+							Math.Abs(position2.x) < rectTransform.rect.width / 2 && Math.Abs(position2.y) < rectTransform.rect.height / 2)
+						{
+							// Get the hovered word.
+							var charPosition = InputField.GetCharacterIndexFromPosition(position2);
+							if (charPosition >= InputField.text.Length || InputField.text[charPosition] == ',' || InputField.text[charPosition] == '+') return;
+							var matches = tokenRegex.Matches(InputField.text);
+							foreach (Match match in matches)
+							{
+								if (charPosition < match.Index) break;
+								if (charPosition <= match.Index + match.Length)
+								{
+									var group = match.Groups["ID"];
+									if (group.Success)
+									{
+										if (charPosition < group.Index || charPosition >= group.Index + group.Length) break;
+										var start = group.Value.LastIndexOfAny(new[] { ',', '+' }, charPosition - group.Index) + 1;
+										var end = group.Value.IndexOfAny(new[] { ',', '+' }, charPosition - group.Index);
+										if (end < 0) end = group.Length;
+										var id = group.Value.Substring(start, end - start).Replace("\"", "");
+										InputField.transform.Find("Tooltip").GetComponent<ModuleListItem>().ID = id;
+										ShowPopup((RectTransform) InputField.transform.Find("Tooltip"), position2, position2);
+										InputField.transform.Find("Tooltip").gameObject.SetActive(true);
+
+										var entry = moduleData.FirstOrDefault(e => e.ModuleType == id);
+										if (entry != null)
+										{
+											InputField.transform.Find("Tooltip").GetComponent<ModuleListItem>().Name = entry.DisplayName;
+										}
+										else
+											InputField.transform.Find("Tooltip").GetComponent<ModuleListItem>().Name = "";
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		public void LateUpdate()
+		{
+			if (repositionScrollView > 0)
+			{
+				--repositionScrollView;
+				if (repositionScrollView == 0)
+				{
+					ScrollView.gameObject.SetActive(true);
+					var array = (UIVertex[]) cursorVertsField.GetValue(InputField);
+					ShowPopup(ScrollView, array[0].position, array[3].position);
+				}
+			}
+		}
+
+		private void ShowPopup(RectTransform popup, Vector3 cursorBottom, Vector3 cursorTop)
+		{
+			var inputFieldTransform = (RectTransform) InputField.transform;
+			popup.pivot = new Vector2(0, 1);
+			popup.localPosition = cursorBottom + new Vector3(0, 4);
+			if (-popup.localPosition.y + popup.sizeDelta.y > inputFieldTransform.rect.height / 2)
+			{
+				popup.pivot = Vector2.zero;
+				popup.localPosition = cursorTop - new Vector3(0, 4);
+			}
+			float d = popup.localPosition.x + popup.sizeDelta.x - inputFieldTransform.rect.width / 2;
+			if (d > 0)
+			{
+				popup.localPosition -= new Vector3(d, 0);
 			}
 		}
 
@@ -250,6 +340,16 @@ namespace DynamicMissionGeneratorAssembly
 						}
 					}
 				}
+			}
+
+			if (listItems.Count > 0)
+			{
+				repositionScrollView = 2;
+			}
+			else
+			{
+				repositionScrollView = 0;
+				ScrollView.gameObject.SetActive(false);
 			}
 		}
 
