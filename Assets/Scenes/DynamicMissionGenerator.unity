@@ -113,7 +113,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1001 &905406763
+--- !u!1001 &242203890
 Prefab:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -151,31 +151,6 @@ Prefab:
     - target: {fileID: 4626440596572336, guid: 4e93eb5b09d4e1f44b091de83d8f48db, type: 2}
       propertyPath: m_RootOrder
       value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 224443547478385880, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
-        type: 2}
-      propertyPath: m_AnchorMax.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 224443547478385880, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
-        type: 2}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 224994358660931730, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
-        type: 2}
-      propertyPath: m_AnchorMax.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 224994358660931730, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
-        type: 2}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 224994358660931730, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
-        type: 2}
-      propertyPath: m_SizeDelta.x
-      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: 4e93eb5b09d4e1f44b091de83d8f48db, type: 2}

@@ -22,21 +22,28 @@ namespace DynamicMissionGeneratorAssembly
 		public RectTransform ModuleList;
 		public Scrollbar Scrollbar;
 		public RectTransform ScrollView;
+		public ModuleListItem Tooltip;
+		public Text ErrorPopup;
 		private readonly List<GameObject> listItems = new List<GameObject>();
-		private bool factoryEnabled;
+		private bool multipleBombsEnabled, factoryEnabled;
 
 		public KMAudio Audio;
 		public KMGameInfo GameInfo;
 
 		private readonly List<ModuleData> moduleData = new List<ModuleData>();
 		private static readonly Regex tokenRegex = new Regex(@"
-			\G(?:^\s*|\s+)()(?:  # Group 1 marks the position after whitespace.
-				(?:(?<Hr>\d{1,9}):)?(?<Min>\d{1,9}):(?<Sec>\d{1,9})|  # Bomb time
-				(?<Strikes>\d{1,9})X\b|  # Strike limit
-				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory)(?:\:(?<Value>\S*))?|  # Setting
-				(?:(?<Count>\d{1,9})[;*])?  # Module pool count
-				(?<ID>(?:[^\s""]|""[^""]*(?:""|$))+)  # Module IDs
-			)?(?!\S)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace);
+			\G\s*()(?:  # Group 1 marks the position after whitespace; used for completion
+				//.*|/\*[\s\S]*?(?:\*/|$)|  # Comment
+				(?<Close>\))|
+				(?:time:)?(?<Time1>\d{1,9}):(?<Time2>\d{1,9})(?::(?<Time3>\d{1,9}))?(?!\S)|
+				(?<Strikes>\d{1,9})X(?!\S)|
+				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory)(?::(?<Value>\S*))?|
+				(?:(?<Count>\d{1,9})\s*[;*]\s*)?
+				(?:
+					(?<Open>\()|
+					(?<ID>(?:[^\s'"",+)]|(?<q>['""])(?:(?!\k<q>)[\s\S])*(?:\k<q>|(?<Error>))|[,+]\s*)+)  # Module pool; ',' or '+' may be followed by spaces; 'Error' group catches unclosed quotes
+				)
+			)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace);
 		private readonly Dictionary<string, Profile> profiles = new Dictionary<string, Profile>();
 
 		private int tabListIndex = -1;
@@ -79,6 +86,7 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			InitModules();
 			LoadProfiles();
+			multipleBombsEnabled = GameObject.Find("MultipleBombs(Clone)") != null;
 			factoryEnabled = GameObject.Find("FactoryService(Clone)") != null;
 		}
 
@@ -128,7 +136,7 @@ namespace DynamicMissionGeneratorAssembly
 				{
 					oldMousePosition = mousePosition;
 					hoverDelay = 0.5f;
-					InputField.transform.Find("Tooltip").gameObject.SetActive(false);
+					Tooltip.gameObject.SetActive(false);
 				}
 
 				if (hoverDelay > 0)
@@ -138,7 +146,7 @@ namespace DynamicMissionGeneratorAssembly
 					{
 						hoverDelay = 0;
 						var rectTransform = (RectTransform) InputField.transform;
-						if (RectTransformUtility.ScreenPointToLocalPointInRectangle(rectTransform, mousePosition, Camera.current, out var position2) &&
+						if (RectTransformUtility.ScreenPointToLocalPointInRectangle(rectTransform, mousePosition, Camera.main, out var position2) &&
 							Math.Abs(position2.x) < rectTransform.rect.width / 2 && Math.Abs(position2.y) < rectTransform.rect.height / 2)
 						{
 							// Get the hovered word.
@@ -157,18 +165,18 @@ namespace DynamicMissionGeneratorAssembly
 										var start = group.Value.LastIndexOfAny(new[] { ',', '+' }, charPosition - group.Index) + 1;
 										var end = group.Value.IndexOfAny(new[] { ',', '+' }, charPosition - group.Index);
 										if (end < 0) end = group.Length;
-										var id = group.Value.Substring(start, end - start).Replace("\"", "");
-										InputField.transform.Find("Tooltip").GetComponent<ModuleListItem>().ID = id;
-										ShowPopup((RectTransform) InputField.transform.Find("Tooltip"), position2, position2);
-										InputField.transform.Find("Tooltip").gameObject.SetActive(true);
+										var id = FixModuleID(group.Value.Substring(start, end - start));
+										Tooltip.ID = id;
+										ShowPopup((RectTransform) Tooltip.transform, position2, position2);
+										Tooltip.gameObject.SetActive(true);
 
 										var entry = moduleData.FirstOrDefault(e => e.ModuleType == id);
 										if (entry != null)
 										{
-											InputField.transform.Find("Tooltip").GetComponent<ModuleListItem>().Name = entry.DisplayName;
+											Tooltip.Name = entry.DisplayName;
 										}
 										else
-											InputField.transform.Find("Tooltip").GetComponent<ModuleListItem>().Name = "";
+											Tooltip.Name = "";
 									}
 								}
 							}
@@ -230,17 +238,17 @@ namespace DynamicMissionGeneratorAssembly
 			if (!success)
 			{
 				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
-				foreach (var item in listItems) Destroy(item);
-				listItems.Clear();
-				foreach (string m in messages)
-				{
-					var item = Instantiate(ModuleListItemPrefab, ModuleList);
-					item.Name = m;
-					item.ID = "";
-					listItems.Add(item.gameObject);
-				}
+				StartCoroutine(ShowErrorPopupCoroutine(string.Join("\n", messages.Take(5).ToArray()) + (messages.Count > 5 ? $"\n{messages.Count - 5} more" : "")));
 				return false;
 			}
+
+			if (Application.isEditor)
+			{
+				StartCoroutine(ShowErrorPopupCoroutine("Success"));
+				Debug.Log(JsonConvert.SerializeObject(mission, Formatting.Indented), this);
+				return false;
+			}
+			Debug.Log(JsonConvert.SerializeObject(mission, Formatting.Indented), this);
 
 			try
 			{
@@ -256,9 +264,20 @@ namespace DynamicMissionGeneratorAssembly
 			return false;
 		}
 
+		private IEnumerator ShowErrorPopupCoroutine(string message)
+		{
+			ErrorPopup.text = message;
+			ErrorPopup.GetComponent<ContentSizeFitter>().SetLayoutVertical();
+			ErrorPopup.transform.parent.gameObject.SetActive(true);
+			yield return new WaitForSeconds(5);
+			ErrorPopup.transform.parent.gameObject.SetActive(false);
+		}
+
 		public void TextChanged(string newText)
 		{
 			if (tabProcessing) return;
+			ErrorPopup.transform.parent.gameObject.SetActive(false);
+			StopAllCoroutines();
 			tabListIndex = -1;
 			tabCursorPosition = InputField.caretPosition;
 
@@ -272,71 +291,74 @@ namespace DynamicMissionGeneratorAssembly
 
 			foreach (var item in listItems) Destroy(item);
 			listItems.Clear();
-
 			var matches = tokenRegex.Matches(newText.Substring(0, InputField.caretPosition));
 			if (matches.Count > 0)
 			{
 				var lastMatch = matches[matches.Count - 1];
-				if (lastMatch.Groups["Min"].Success)
+				if (lastMatch.Index + lastMatch.Length == InputField.caretPosition)  // Show the popup on whitespace within a quoted module ID, but not whitespace after a token
 				{
-					string text = $"Time: {(lastMatch.Groups["Hr"].Success ? int.Parse(lastMatch.Groups["Hr"].Value) + "h " : "")}{int.Parse(lastMatch.Groups["Min"].Value)}m {int.Parse(lastMatch.Groups["Sec"].Value)}s";
-					var item = AddListItem("", text, false);
-					item.HighlightName(6, text.Length - 6);
-				}
-				else if (lastMatch.Groups["Strikes"].Success)
-				{
-					var item = AddListItem("", "Strike limit: " + lastMatch.Value.TrimStart(), false);
-					item.HighlightName(14, item.Name.Length - 14);
-				}
-				else if (lastMatch.Groups["Setting"].Success)
-				{
-					if (lastMatch.Groups["Setting"].Value.Equals("factory", StringComparison.InvariantCultureIgnoreCase))
+					if (lastMatch.Groups["T1"].Success)
 					{
-						if (factoryEnabled)
+						string text = string.Format(lastMatch.Groups["T3"].Success ? "Time: {0}h {1}m {2}s" : "Time: {0}m {1}s",
+							int.Parse(lastMatch.Groups["T1"].Value), int.Parse(lastMatch.Groups["T2"].Value), int.Parse(lastMatch.Groups["T3"].Value));
+						var item = AddListItem(lastMatch.Value.TrimStart(), text, false);
+						item.HighlightID(0, item.ID.Length);
+					}
+					else if (lastMatch.Groups["Strikes"].Success)
+					{
+						var item = AddListItem(lastMatch.Value.TrimStart(), "Strike limit: " + int.Parse(lastMatch.Groups["Strikes"].Value), false);
+						item.HighlightID(0, item.ID.Length);
+					}
+					else if (lastMatch.Groups["Setting"].Success)
+					{
+						if (lastMatch.Groups["Setting"].Value.Equals("factory", StringComparison.InvariantCultureIgnoreCase))
 						{
-							foreach (var m in factoryModeList)
+							if (factoryEnabled)
 							{
-								if (m.ModuleType.StartsWith(lastMatch.Groups["Value"].Value, StringComparison.InvariantCultureIgnoreCase))
+								foreach (var m in factoryModeList)
 								{
-									var item = AddListItem("factory:" + m.ModuleType, m.DisplayName, true);
-									item.HighlightID(0, lastMatch.Groups["Value"].Length + 8);
+									if (m.ModuleType.StartsWith(lastMatch.Groups["Value"].Value, StringComparison.InvariantCultureIgnoreCase))
+									{
+										var item = AddListItem("factory:" + m.ModuleType, m.DisplayName, true);
+										item.HighlightID(0, lastMatch.Groups["Value"].Length + 8);
+									}
 								}
+							}
+							else
+							{
+								var item = AddListItem(lastMatch.Groups["Setting"].Value + ":" + lastMatch.Groups["Value"].Value, "[Factory is not enabled]", false);
+								item.HighlightID(0, item.ID.Length);
 							}
 						}
 						else
 						{
-							var item = AddListItem(lastMatch.Groups["Setting"].Value + ":" + lastMatch.Groups["Value"].Value, "[Factory is not enabled]", false);
-							item.HighlightID(0, item.ID.Length);
+							var item = AddListItem("", lastMatch.Groups["Setting"].Value + ": " + lastMatch.Groups["Value"].Value, false);
+							item.HighlightName(lastMatch.Groups["Setting"].Value.Length + 2, item.Name.Length - (lastMatch.Groups["Setting"].Value.Length + 2));
 						}
 					}
-					else
+					else if (lastMatch.Groups["ID"].Success)
 					{
-						var item = AddListItem("", lastMatch.Groups["Setting"].Value + ": " + lastMatch.Groups["Value"].Value, false);
-						item.HighlightName(lastMatch.Groups["Setting"].Value.Length + 2, item.Name.Length - (lastMatch.Groups["Setting"].Value.Length + 2));
-					}
-				}
-				else if (lastMatch.Groups["ID"].Success)
-				{
-					string s = GetLastModuleID(lastMatch.Groups["ID"].Value).Replace("\"", "");
-					tabStub = s;
-					if (!lastMatch.Groups["Count"].Success && !string.IsNullOrEmpty(lastMatch.Groups["ID"].Value) && lastMatch.Groups["ID"].Value.All(char.IsDigit))
-					{
-						var item = AddListItem($"{s}:00", "[Set time]", true);
-						item.HighlightID(0, s.Length);
-						item = AddListItem($"{s}X", "[Set strike limit]", true);
-						item.HighlightID(0, s.Length);
-						item = AddListItem($"{s}*", "[Set module pool count]", true);
-						item.HighlightID(0, s.Length);
-					}
-					foreach (var m in moduleData)
-					{
-						bool id = m.ModuleType.StartsWith(s, StringComparison.InvariantCultureIgnoreCase);
-						bool name = !id && m.DisplayName.StartsWith(s, StringComparison.InvariantCultureIgnoreCase);
-						if (id || name)
+						string s = FixModuleID(GetLastModuleID(lastMatch.Groups["ID"].Value));
+						tabStub = s;
+						if (!lastMatch.Groups["Count"].Success && !string.IsNullOrEmpty(lastMatch.Groups["ID"].Value) && lastMatch.Groups["ID"].Value.All(char.IsDigit))
 						{
-							var item = AddListItem(m.ModuleType, m.DisplayName, true);
-							if (id) item.HighlightID(0, s.Length);
-							else if (name) item.HighlightName(0, s.Length);
+							var item = AddListItem($"{s}:00", "[Set time]", true);
+							item.HighlightID(0, s.Length);
+							item = AddListItem($"{s}X", "[Set strike limit]", true);
+							item.HighlightID(0, s.Length);
+							item = AddListItem($"{s}*", "[Set module pool count]", true);
+							item.HighlightID(0, s.Length);
+						}
+						foreach (var m in moduleData)
+						{
+							bool id = m.ModuleType.StartsWith(s, StringComparison.InvariantCultureIgnoreCase);
+							bool name = !id && m.DisplayName.StartsWith(s, StringComparison.InvariantCultureIgnoreCase);
+							if (id || name)
+							{
+								var item = AddListItem(m.ModuleType, m.DisplayName, true);
+								if (id) item.HighlightID(0, s.Length);
+								else if (name) item.HighlightName(0, s.Length);
+							}
 						}
 					}
 				}
@@ -355,6 +377,7 @@ namespace DynamicMissionGeneratorAssembly
 
 		private static string GetLastModuleID(string list) => list.Substring(GetLastModuleIDPos(list));
 		private static int GetLastModuleIDPos(string list) => list.LastIndexOfAny(new[] { ',', '+' }) + 1;
+		private static string FixModuleID(string id) => id.Replace("\"", "").Replace("'", "").Trim();
 
 		private ModuleListItem AddListItem(string id, string text, bool addClickEvent)
 		{
@@ -383,7 +406,7 @@ namespace DynamicMissionGeneratorAssembly
 			if (match.Groups["ID"].Success)
 			{
 				startIndex = match.Groups["ID"].Index + GetLastModuleIDPos(match.Groups["ID"].Value);
-				if (id.Contains(' ') && match.Groups["ID"].Value.Take(startIndex).Count(c => c == '"') % 2 == 0)
+				if (id.Contains(' ') && match.Groups["ID"].Value.Take(startIndex).Count(c => c == '"' || c == '\'') % 2 == 0)
 					id = "\"" + id + "\"";
 				if (space) id += " ";
 			}
@@ -522,74 +545,107 @@ namespace DynamicMissionGeneratorAssembly
 			messages = new List<string>();
 
 			var matches = tokenRegex.Matches(text);
-			if (matches.Count == 0 || (matches.Count == 1 && !matches[0].Value.Any(c => !char.IsWhiteSpace(c))) || matches[matches.Count - 1].Index + matches[matches.Count - 1].Length < text.Length)
-			{
-				messages.Add("Syntax error");
-				mission = null;
-				return false;
-			}
 
-			var allSolvableModules = new HashSet<string>((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllSolvableModules"]);
-			var allNeedyModules = new HashSet<string>((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["AllNeedyModules"]);
-			var enabledSolvableModules = new HashSet<string>(allSolvableModules.Except((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["DisabledSolvableModules"]));
-			var enabledNeedyModules = new HashSet<string>(allNeedyModules.Except((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi["DisabledNeedyModules"]));
+			var allSolvableModules = new HashSet<string>((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi?["AllSolvableModules"] ?? new string[0]);
+			var allNeedyModules = new HashSet<string>((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi?["AllNeedyModules"] ?? new string[0]);
+			var enabledSolvableModules = new HashSet<string>(allSolvableModules.Except((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi?["DisabledSolvableModules"] ?? new string[0]));
+			var enabledNeedyModules = new HashSet<string>(allNeedyModules.Except((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi?["DisabledNeedyModules"] ?? new string[0]));
 
-			bool timeSpecified = false, strikesSpecified = false, anySolvableModules = false;
+			KMGeneratorSetting currentBomb = null;
+			List<KMGeneratorSetting> bombs = null;
+
+			int bombRepeatCount = 0;
+			int? defaultTime = null, defaultStrikes = null, defaultNeedyActivationTime = null, defaultWidgetCount = null;
+			bool defaultFrontOnly = false;
+			bool timeSpecified = false, strikesSpecified = false, needyActivationTimeSpecified = false, widgetCountSpecified = false;
+			bool anySolvableModules = false;
 			int? factoryMode = null;
+
 			mission = ScriptableObject.CreateInstance<KMMission>();
 			mission.PacingEventsEnabled = true;
-			mission.GeneratorSetting = new KMGeneratorSetting();
-			List<KMComponentPool> pools = new List<KMComponentPool>();
+			List<KMComponentPool> pools = null;
+
+			void newBomb()
+			{
+				currentBomb = new KMGeneratorSetting() { FrontFaceOnly = defaultFrontOnly };
+				timeSpecified = strikesSpecified = needyActivationTimeSpecified = widgetCountSpecified = anySolvableModules = false;
+				pools = new List<KMComponentPool>();
+			}
+
+			void validateBomb(List<string> messages)
+			{
+				if (!anySolvableModules) messages.Add("No solvable modules" + (bombs != null ? $" on bomb {bombs.Count + 1}" : ""));
+				currentBomb.ComponentPools = pools;
+				if (!timeSpecified) currentBomb.TimeLimit = defaultTime ?? currentBomb.GetComponentCount() * 120;
+				if (!strikesSpecified) currentBomb.NumStrikes = defaultStrikes ?? Math.Max(3, currentBomb.GetComponentCount() / 12);
+				if (!needyActivationTimeSpecified && defaultNeedyActivationTime.HasValue) currentBomb.TimeBeforeNeedyActivation = defaultNeedyActivationTime.Value;
+				if (!widgetCountSpecified && defaultWidgetCount.HasValue) currentBomb.OptionalWidgetCount = defaultWidgetCount.Value;
+				if (currentBomb.GetComponentCount() > GetMaxModules())
+					messages.Add($"Too many modules for any bomb casing ({currentBomb.GetComponentCount()} > {GetMaxModules()})" + (bombs != null ? $" on bomb {bombs.Count + 1}" : ""));
+			}
+
 			foreach (Match match in matches)
 			{
-				if (match.Groups["Min"].Success)
+				if (match.Groups["Time1"].Success)
 				{
-					if (timeSpecified)
-						messages.Add("Time specified multiple times");
-					else
-					{
-						timeSpecified = true;
-						mission.GeneratorSetting.TimeLimit = (match.Groups["Hr"].Success ? int.Parse(match.Groups["Hr"].Value) * 3600 : 0) +
-							int.Parse(match.Groups["Min"].Value) * 60 + int.Parse(match.Groups["Sec"].Value);
-						if (mission.GeneratorSetting.TimeLimit <= 0) messages.Add("Invalid time limit");
-					}
+					if (timeSpecified) messages.Add("Time specified multiple times");
+					timeSpecified = true;
+
+					var time = match.Groups["Time3"].Success ?
+						int.Parse(match.Groups["Time1"].Value) * 3600 + int.Parse(match.Groups["Time2"].Value) * 60 + int.Parse(match.Groups["Time3"].Value) :
+						int.Parse(match.Groups["Time1"].Value) * 60 + int.Parse(match.Groups["Time2"].Value);
+					if (time <= 0) messages.Add("Invalid time limit");
+
+					if (currentBomb != null) currentBomb.TimeLimit = time;
+					else defaultTime = time;
 				}
-				else if (match.Groups["Strikes"].Success)
+				else if (match.Groups["Strikes"].Success || match.Groups["Setting"].Value.Equals("strikes", StringComparison.InvariantCultureIgnoreCase))
 				{
-					if (strikesSpecified) messages.Add("Strike limit specified multiple times");
-					else
-					{
-						strikesSpecified = true;
-						mission.GeneratorSetting.NumStrikes = int.Parse(match.Groups["Strikes"].Value);
-						if (mission.GeneratorSetting.NumStrikes <= 0) messages.Add("Invalid strike limit");
-					}
+					if (strikesSpecified) messages.Add("Strikes specified multiple times");
+					strikesSpecified = true;
+
+					var strikes = int.Parse(match.Groups["Strikes"].Success ? match.Groups["Strikes"].Value : match.Groups["Value"].Value);
+					if (strikes <= 0) messages.Add("Invalid strike limit");
+
+					if (currentBomb != null) currentBomb.NumStrikes = strikes;
+					else defaultStrikes = strikes;
 				}
 				else if (match.Groups["Setting"].Success)
 				{
 					switch (match.Groups["Setting"].Value.ToLowerInvariant())
 					{
-						case "strikes":
-							if (match.Groups["Value"].Success) {
-								if (strikesSpecified) messages.Add("Strike limit specified multiple times");
-								else
-								{
-									strikesSpecified = true;
-									mission.GeneratorSetting.NumStrikes = int.Parse(match.Groups["Value"].Value);
-									if (mission.GeneratorSetting.NumStrikes <= 0) messages.Add("Invalid strike limit");
-								}
-							}
-							break;
 						case "needyactivationtime":
-							if (match.Groups["Value"].Success) mission.GeneratorSetting.TimeBeforeNeedyActivation = int.Parse(match.Groups["Value"].Value);
+							if (needyActivationTimeSpecified) messages.Add("Needy activation time specified multiple times");
+							needyActivationTimeSpecified = true;
+
+							var needyActivationTime = int.Parse(match.Groups["Value"].Value);
+							if (needyActivationTime < 0) messages.Add("Invalid needy activation time");
+
+							if (currentBomb != null) currentBomb.TimeBeforeNeedyActivation = needyActivationTime;
+							else defaultNeedyActivationTime = needyActivationTime;
 							break;
 						case "widgets":
-							if (match.Groups["Value"].Success) mission.GeneratorSetting.OptionalWidgetCount = int.Parse(match.Groups["Value"].Value);
+							if (widgetCountSpecified) messages.Add("Widget count specified multiple times");
+							widgetCountSpecified = true;
+
+							var widgetCount = int.Parse(match.Groups["Value"].Value);
+							if (widgetCount < 0) messages.Add("Invalid widget count");
+
+							if (currentBomb != null) currentBomb.OptionalWidgetCount = widgetCount;
+							else defaultWidgetCount = widgetCount;
 							break;
-						case "nopacing": mission.PacingEventsEnabled = false; break;
-						case "frontonly": mission.GeneratorSetting.FrontFaceOnly = true; break;
+						case "frontonly":
+							if (currentBomb != null) currentBomb.FrontFaceOnly = true;
+							else defaultFrontOnly = true;
+							break;
+						case "nopacing":
+							if (bombs != null && currentBomb != null) messages.Add("nopacing cannot be a bomb-level setting");
+							else mission.PacingEventsEnabled = false;
+							break;
 						case "factory":
-							if (factoryMode.HasValue) messages.Add("Factory mode specified multiple times");
-							else if (!factoryEnabled) messages.Add("Factory does not seem to be enabled");
+							if (bombs != null && currentBomb != null) messages.Add("Factory mode cannot be a bomb-level setting");
+							else if (factoryMode.HasValue) messages.Add("Factory mode specified multiple times");
+							else if (!factoryEnabled && !Application.isEditor) messages.Add("Factory does not seem to be enabled");
 							else
 							{
 								for (factoryMode = 0; factoryMode < factoryModeList.Length; ++factoryMode)
@@ -600,20 +656,34 @@ namespace DynamicMissionGeneratorAssembly
 								{
 									messages.Add("Invalid factory mode");
 								}
-								else
-								{
-									pools.Add(new KMComponentPool()
-									{
-										ModTypes = new List<string>() { "Factory Mode" },
-										Count = factoryMode.Value
-									});
-								}
 							}
 							break;
 					}
 				}
 				else if (match.Groups["ID"].Success)
 				{
+					if (match.Groups["Error"].Success) messages.Add("Unclosed quote");
+					if (bombs == null)
+					{
+						if (currentBomb == null)
+						{
+							newBomb();
+							timeSpecified = defaultTime.HasValue;
+							strikesSpecified = defaultStrikes.HasValue;
+							needyActivationTimeSpecified = defaultNeedyActivationTime.HasValue;
+							widgetCountSpecified = defaultWidgetCount.HasValue;
+						}
+					}
+					else
+					{
+						if (currentBomb == null)
+						{
+							messages.Add("Unexpected module pool");
+							anySolvableModules = true;
+							continue;
+						}
+					}
+
 					KMComponentPool pool = new KMComponentPool
 					{
 						Count = match.Groups["Count"].Success ? int.Parse(match.Groups["Count"].Value) : 1,
@@ -623,7 +693,7 @@ namespace DynamicMissionGeneratorAssembly
 					if (pool.Count <= 0) messages.Add("Invalid module pool count");
 
 					bool allSolvable = true;
-					string list = match.Groups["ID"].Value.Replace("\"", "").Trim();
+					string list = FixModuleID(match.Groups["ID"].Value);
 					switch (list)
 					{
 						case "ALL_SOLVABLE":
@@ -731,12 +801,37 @@ namespace DynamicMissionGeneratorAssembly
 						pool.ComponentTypes = null;
 					pools.Add(pool);
 				}
+				else if (match.Groups["Open"].Success)
+				{
+					if (currentBomb != null) messages.Add("Unexpected '('");
+					if (!multipleBombsEnabled && !Application.isEditor) messages.Add("Multiple Bombs does not seem to be enabled");
+					bombRepeatCount = match.Groups["Count"].Success ? int.Parse(match.Groups["Count"].Value) : 1;
+					if (bombRepeatCount <= 0) messages.Add("Invalid bomb repeat count");
+					if (bombs == null) bombs = new List<KMGeneratorSetting>();
+					newBomb();
+				}
+				else if (match.Groups["Close"].Success)
+				{
+					if (currentBomb == null) messages.Add("Unexpected ')'");
+					else
+					{
+						validateBomb(messages);
+						for (; bombRepeatCount > 0; --bombRepeatCount) bombs.Add(currentBomb);
+						currentBomb = null;
+					}
+				}
 			}
 
-			if (!anySolvableModules) messages.Add("No regular modules");
-			mission.GeneratorSetting.ComponentPools.AddRange(pools);
-			if (mission.GeneratorSetting.GetComponentCount() - (factoryMode ?? 0) > GetMaxModules())
-				messages.Add($"Too many modules for any bomb casing ({mission.GeneratorSetting.GetComponentCount()} > {GetMaxModules()}).");
+			if (bombs == null)
+			{
+				if (currentBomb == null) messages.Add("No solvable modules");
+				else
+				{
+					validateBomb(messages);
+					mission.GeneratorSetting = currentBomb;
+				}
+			}
+			else if (bombs.Count == 0) messages.Add("No solvable modules");
 
 			if (messages.Count > 0)
 			{
@@ -744,15 +839,29 @@ namespace DynamicMissionGeneratorAssembly
 				mission = null;
 				return false;
 			}
+			if (bombs != null)
+			{
+				mission.GeneratorSetting = bombs[0];
+				if (bombs.Count > 1)
+				{
+					mission.GeneratorSetting.ComponentPools.Add(new KMComponentPool() { Count = bombs.Count - 1, ModTypes = new List<string>() { "Multiple Bombs" } });
+					for (int i = 1; i < bombs.Count; ++i)
+					{
+						if (bombs[i] != mission.GeneratorSetting)
+							mission.GeneratorSetting.ComponentPools.Add(new KMComponentPool() { ModTypes = new List<string>() { $"Multiple Bombs:{i}:{JsonConvert.SerializeObject(bombs[i])}" } });
+					}
+				}
+			}
+			if (factoryMode.HasValue)
+				mission.GeneratorSetting.ComponentPools.Add(new KMComponentPool() { Count = factoryMode.Value, ModTypes = new List<string>() { "Factory Mode" } });
 			messages = null;
 			mission.DisplayName = "Custom Freeplay";
-			if (!timeSpecified) mission.GeneratorSetting.TimeLimit = mission.GeneratorSetting.GetComponentCount() * 120;
-			if (!strikesSpecified) mission.GeneratorSetting.NumStrikes = Math.Max(3, mission.GeneratorSetting.GetComponentCount() / 12);
 			return true;
 		}
 
 		private int GetMaxModules()
 		{
+			if (Application.isEditor) return 11;
 			GameObject roomPrefab = (GameObject) _gameplayroomPrefabOverrideField.GetValue(null);
 			if (roomPrefab == null) return GameInfo.GetMaximumBombModules();
 			return roomPrefab.GetComponentInChildren(_elevatorRoomType, true) != null ? 54 : GameInfo.GetMaximumBombModules();
