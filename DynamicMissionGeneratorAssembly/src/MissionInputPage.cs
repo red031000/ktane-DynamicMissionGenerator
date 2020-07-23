@@ -406,7 +406,7 @@ namespace DynamicMissionGeneratorAssembly
 			if (match.Groups["ID"].Success)
 			{
 				startIndex = match.Groups["ID"].Index + GetLastModuleIDPos(match.Groups["ID"].Value);
-				if (id.Contains(' ') && match.Groups["ID"].Value.Take(startIndex).Count(c => c == '"' || c == '\'') % 2 == 0)
+				if (id.Contains(' ') && match.Groups["ID"].Value.Take(startIndex - match.Groups["ID"].Index).Count(c => c == '"' || c == '\'') % 2 == 0)
 					id = "\"" + id + "\"";
 				if (space) id += " ";
 			}
