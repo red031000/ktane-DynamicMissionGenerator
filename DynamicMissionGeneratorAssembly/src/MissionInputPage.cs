@@ -49,10 +49,11 @@ namespace DynamicMissionGeneratorAssembly
 		private int tabListIndex = -1;
 		private int tabCursorPosition = -1;
 		private string tabStub;
-		private bool tabProcessing;
+		private bool suppressTextChanged;
 		private int repositionScrollView;
 		private Vector2 oldMousePosition;
 		private float hoverDelay;
+		private string prevText = "";
 		private int prevCursorPosition = -1;
 
 		private static readonly ModuleData[] factoryModeList = new[]
@@ -89,12 +90,12 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			if (listItems.Count == 0) return;
 			e.SuppressKeyPress = true;
-			tabProcessing = true;
+			suppressTextChanged = true;
 			if (tabListIndex >= 0 && tabListIndex < listItems.Count)
 				SetNormalColour(listItems[tabListIndex].GetComponent<Button>(), tabListIndex % 2 == 0 ? Color.white : new Color(0.875f, 0.875f, 0.875f));
 			if (listItems.Count == 0 || string.IsNullOrEmpty(listItems[0].GetComponent<ModuleListItem>().ID))
 			{
-				tabProcessing = false;
+				suppressTextChanged = false;
 				return;
 			}
 			if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
@@ -293,19 +294,39 @@ namespace DynamicMissionGeneratorAssembly
 
 		public void TextChanged(string newText)
 		{
+			bool inserted = newText.Length > prevText.Length;
 			prevCursorPosition = -1;
-			if (tabProcessing) return;
+			prevText = newText;
+			if (suppressTextChanged) return;
 			ErrorPopup.transform.parent.gameObject.SetActive(false);
 			StopAllCoroutines();
 			tabListIndex = -1;
 			tabCursorPosition = InputField.caretPosition;
 
-			if (InputField.caretPosition >= 2 && newText[InputField.caretPosition - 1] == ',' && newText[InputField.caretPosition - 2] == ' ')
+			if (inserted)
 			{
-				// If a comma was typed immediately after an auto-inserted space, remove the space.
-				StartCoroutine(SetSelectionCoroutine(InputField.caretPosition - 1));
-				InputField.text = newText.Remove(InputField.caretPosition - 2, 1);
-				return;
+				if (InputField.caretPosition >= 2 && newText[InputField.caretPosition - 1] == ',' && newText[InputField.caretPosition - 2] == ' ')
+				{
+					// If a comma was typed immediately after an auto-inserted space, remove the space and recurse.
+					StartCoroutine(SetSelectionCoroutine(InputField.caretPosition - 1));
+					InputField.text = newText.Remove(InputField.caretPosition - 2, 1);
+					return;
+				}
+
+				if (InputField.caretPosition >= 1 && newText[InputField.caretPosition - 1] == '\n')
+				{
+					// When a newline is typed, automatically indent the new line based on the previous line.
+					int pos = newText.LastIndexOf('\n', InputField.caretPosition - 2) + 1;
+					int length = 0;
+					while (newText[pos + length] == ' ' || newText[pos + length] == '\t') ++length;
+					if (length > 0)
+					{
+						suppressTextChanged = true;
+						InputField.text = newText.Insert(InputField.caretPosition, newText.Substring(pos, length));
+						StartCoroutine(SetSelectionCoroutine(InputField.caretPosition + length));
+						suppressTextChanged = false;
+					}
+				}
 			}
 
 			foreach (var item in listItems) Destroy(item);
@@ -412,9 +433,9 @@ namespace DynamicMissionGeneratorAssembly
 		private void ModuleListItem_Click(object sender, EventArgs e)
 		{
 			string id = ((ModuleListItem) sender).ID;
-			tabProcessing = true;
+			suppressTextChanged = true;
 			ReplaceToken(id, !id.EndsWith("*"));
-			tabProcessing = false;
+			suppressTextChanged = false;
 		}
 
 		private int ReplaceToken(string id, bool space)
@@ -441,7 +462,7 @@ namespace DynamicMissionGeneratorAssembly
 			yield return null;
 			InputField.caretPosition = pos;
 			InputField.ForceLabelUpdate();
-			if (tabProcessing) tabProcessing = false;
+			if (suppressTextChanged) suppressTextChanged = false;
 			else TextChanged(InputField.text);
 			prevCursorPosition = -1;
 		}
