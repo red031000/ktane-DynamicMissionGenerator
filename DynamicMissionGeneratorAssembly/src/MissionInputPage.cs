@@ -53,6 +53,7 @@ namespace DynamicMissionGeneratorAssembly
 		private int repositionScrollView;
 		private Vector2 oldMousePosition;
 		private float hoverDelay;
+		private int prevCursorPosition = -1;
 
 		private static readonly ModuleData[] factoryModeList = new[]
 		{
@@ -183,6 +184,20 @@ namespace DynamicMissionGeneratorAssembly
 						}
 					}
 				}
+
+				// If the cursor position has changed by means other than the Tab key, clear the completion popup.
+				if (InputField.caretPosition != prevCursorPosition)
+				{
+					if (prevCursorPosition >= 0)
+					{
+						tabListIndex = -1;
+						foreach (var item in listItems) Destroy(item);
+						listItems.Clear();
+						repositionScrollView = 0;
+						ScrollView.gameObject.SetActive(false);
+					}
+					prevCursorPosition = InputField.caretPosition;
+				}
 			}
 		}
 
@@ -275,6 +290,7 @@ namespace DynamicMissionGeneratorAssembly
 
 		public void TextChanged(string newText)
 		{
+			prevCursorPosition = -1;
 			if (tabProcessing) return;
 			ErrorPopup.transform.parent.gameObject.SetActive(false);
 			StopAllCoroutines();
@@ -424,6 +440,7 @@ namespace DynamicMissionGeneratorAssembly
 			InputField.ForceLabelUpdate();
 			if (tabProcessing) tabProcessing = false;
 			else TextChanged(InputField.text);
+			prevCursorPosition = -1;
 		}
 
 		private void InitModules()
