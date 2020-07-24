@@ -72,6 +72,8 @@ namespace DynamicMissionGeneratorAssembly
 
 		public void Start()
 		{
+			InputField.Submit += (sender, e) => RunInteract();
+			InputField.TabPressed += InputField_TabPressed;
 			RunButtonSelectable.OnInteract += RunInteract;
 			_elevatorRoomType = ReflectionHelper.FindType("ElevatorRoom");
 			_gameplayStateType = ReflectionHelper.FindType("GameplayState");
@@ -81,6 +83,44 @@ namespace DynamicMissionGeneratorAssembly
 			// KMModSettings is not used here because this isn't strictly a configuration option.
 			string path = Path.Combine(Application.persistentDataPath, "LastDynamicMission.txt");
 			if (File.Exists(path)) InputField.text = File.ReadAllText(path);
+		}
+
+		private void InputField_TabPressed(object sender, InputField.TabPressedEventArgs e)
+		{
+			if (listItems.Count == 0) return;
+			e.SuppressKeyPress = true;
+			tabProcessing = true;
+			if (tabListIndex >= 0 && tabListIndex < listItems.Count)
+				SetNormalColour(listItems[tabListIndex].GetComponent<Button>(), tabListIndex % 2 == 0 ? Color.white : new Color(0.875f, 0.875f, 0.875f));
+			if (listItems.Count == 0 || string.IsNullOrEmpty(listItems[0].GetComponent<ModuleListItem>().ID))
+			{
+				tabProcessing = false;
+				return;
+			}
+			if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+			{
+				if (tabListIndex < 0) tabListIndex = listItems.Count;
+				--tabListIndex;
+			}
+			else
+			{
+				++tabListIndex;
+				if (tabListIndex >= listItems.Count) tabListIndex = -1;
+			}
+			if (tabListIndex < 0)
+			{
+				tabCursorPosition = ReplaceToken(tabStub, false);
+				Scrollbar.value = 1;
+			}
+			else
+			{
+				SetNormalColour(listItems[tabListIndex].GetComponent<Button>(), new Color(1, 0.75f, 1));
+				string id = listItems[tabListIndex].GetComponent<ModuleListItem>().ID;
+				tabCursorPosition = ReplaceToken(id, false);
+				float offset = (-((RectTransform) ModuleList.parent).rect.height + ((RectTransform) ModuleListItemPrefab.transform).sizeDelta.y * (tabListIndex * 2 + 1)) / 2;
+				float limit = ModuleList.rect.height - ((RectTransform) ModuleList.parent).rect.height;
+				Scrollbar.value = Math.Min(1, 1 - offset / limit);
+			}
 		}
 
 		public void OnEnable()
@@ -95,43 +135,6 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			if (EventSystem.current.currentSelectedGameObject == InputField.gameObject)
 			{
-				if ((Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)) && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
-					RunInteract();
-				if (Input.GetKeyDown(KeyCode.Tab) && listItems.Count > 0)
-				{
-					tabProcessing = true;
-					if (tabListIndex >= 0 && tabListIndex < listItems.Count)
-						SetNormalColour(listItems[tabListIndex].GetComponent<Button>(), tabListIndex % 2 == 0 ? Color.white : new Color(0.875f, 0.875f, 0.875f));
-					if (listItems.Count == 0 || string.IsNullOrEmpty(listItems[0].GetComponent<ModuleListItem>().ID))
-					{
-						tabProcessing = false;
-						return;
-					}
-					if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
-					{
-						if (tabListIndex < 0) tabListIndex = listItems.Count;
-						--tabListIndex;
-					} else
-					{
-						++tabListIndex;
-						if (tabListIndex >= listItems.Count) tabListIndex = -1;
-					}
-					if (tabListIndex < 0)
-					{
-						tabCursorPosition = ReplaceToken(tabStub, false);
-						Scrollbar.value = 1;
-					}
-					else
-					{
-						SetNormalColour(listItems[tabListIndex].GetComponent<Button>(), new Color(1, 0.75f, 1));
-						string id = listItems[tabListIndex].GetComponent<ModuleListItem>().ID;
-						tabCursorPosition = ReplaceToken(id, false);
-						float offset = (-((RectTransform) ModuleList.parent).rect.height + ((RectTransform) ModuleListItemPrefab.transform).sizeDelta.y * (tabListIndex * 2 + 1)) / 2;
-						float limit = ModuleList.rect.height - ((RectTransform) ModuleList.parent).rect.height;
-						Scrollbar.value = Math.Min(1, 1 - offset / limit);
-					}
-				}
-
 				var mousePosition = (Vector2) Input.mousePosition;
 				if (mousePosition != oldMousePosition)
 				{

@@ -9,6 +9,9 @@ namespace DynamicMissionGeneratorAssembly
 {
 	public class InputField : UnityEngine.UI.InputField
 	{
+		public event EventHandler Submit;
+		public event EventHandler<TabPressedEventArgs> TabPressed;
+
 		protected static char[] separators = new[] { ' ', '\t', '\r', '\n', '*', ';', '\'', '"', ',', '+' };
 
 		internal UIVertex[] CursorVertices => m_CursorVerts;
@@ -60,9 +63,16 @@ namespace DynamicMissionGeneratorAssembly
 					switch (e.character)
 					{
 						case '\t':
-							return EditState.Continue;
+							var e2 = new TabPressedEventArgs();
+							TabPressed?.Invoke(this, e2);
+							if (e2.SuppressKeyPress) return EditState.Continue;
+							goto default;
 						case '\n': case '\r':
-							if (e.control || e.command) return EditState.Finish;
+							if (e.control || e.command)
+							{
+								Submit?.Invoke(this, EventArgs.Empty);
+								return EditState.Finish;
+							}
 							goto default;
 						default:
 							return base.KeyPressed(e);
@@ -91,5 +101,10 @@ namespace DynamicMissionGeneratorAssembly
 		}
 
 		internal new int GetCharacterIndexFromPosition(Vector2 position) => base.GetCharacterIndexFromPosition(position);
+
+		public class TabPressedEventArgs : EventArgs
+		{
+			public bool SuppressKeyPress { get; set; }
+		}
 	}
 }
