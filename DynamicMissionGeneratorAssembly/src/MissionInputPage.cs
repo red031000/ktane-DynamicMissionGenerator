@@ -73,6 +73,7 @@ namespace DynamicMissionGeneratorAssembly
 
 		public void Start()
 		{
+			InputField.Scroll += InputField_Scroll;
 			InputField.Submit += (sender, e) => RunInteract();
 			InputField.TabPressed += InputField_TabPressed;
 			RunButtonSelectable.OnInteract += RunInteract;
@@ -122,6 +123,11 @@ namespace DynamicMissionGeneratorAssembly
 				float limit = ModuleList.rect.height - ((RectTransform) ModuleList.parent).rect.height;
 				Scrollbar.value = Math.Min(1, 1 - offset / limit);
 			}
+		}
+
+		private void InputField_Scroll(object sender, EventArgs e)
+		{
+			if (ScrollView.gameObject.activeSelf) repositionScrollView = 15;
 		}
 
 		public void OnEnable()

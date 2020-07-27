@@ -1,23 +1,99 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace DynamicMissionGeneratorAssembly
 {
-	public class InputField : UnityEngine.UI.InputField
+	public class InputField : UnityEngine.UI.InputField, IScrollHandler
 	{
+		public Scrollbar Scrollbar;
+
+		public event EventHandler Scroll;
 		public event EventHandler Submit;
 		public event EventHandler<TabPressedEventArgs> TabPressed;
 
 		protected static char[] separators = new[] { ' ', '\t', '\r', '\n', '*', ';', '\'', '"', ',', '+' };
+		protected static FieldInfo allowInputField = typeof(UnityEngine.UI.InputField).GetField("m_AllowInput", BindingFlags.NonPublic | BindingFlags.Instance);
+		protected static FieldInfo shouldActivateNextUpdateField = typeof(UnityEngine.UI.InputField).GetField("m_ShouldActivateNextUpdate", BindingFlags.NonPublic | BindingFlags.Instance);
 
 		internal UIVertex[] CursorVertices => m_CursorVerts;
 
 		private float clickTime;
 		private Vector2 clickPoint;
+		private string prevDrawText = "";
+		private bool suppressScrollbarChanged;
+		private bool setFocusOnMouseUp;
+
+		public void Update()
+		{
+			// Update the scroll bar.
+			if (Scrollbar != null && textComponent.text != prevDrawText)
+			{
+				float size = cachedInputTextGenerator.rectExtents.height;
+				int firstLine = 1;
+				for (; firstLine < cachedInputTextGenerator.lineCount; ++firstLine)
+				{
+					if (cachedInputTextGenerator.lines[firstLine].startCharIdx > m_DrawStart) break;
+				}
+				--firstLine;
+				float topY = cachedInputTextGenerator.lines[firstLine].topY;
+				int endLine = firstLine + 1;
+				for (; endLine < cachedInputTextGenerator.lineCount; ++endLine)
+				{
+					if (cachedInputTextGenerator.lines[endLine].topY - cachedInputTextGenerator.lines[endLine].height < topY - size) break;
+				}
+				suppressScrollbarChanged = true;
+				Scrollbar.size = (float) (endLine - firstLine) / cachedInputTextGenerator.lineCount;
+				Scrollbar.numberOfSteps = cachedInputTextGenerator.lineCount - (endLine - firstLine) + 1;
+				Scrollbar.value = firstLine == 0 ? 0 : (float) firstLine / (Scrollbar.numberOfSteps - 1);  // The conditional avoids division by zero here.
+				suppressScrollbarChanged = false;
+				prevDrawText = textComponent.text;
+			}
+
+			if (setFocusOnMouseUp && !Input.GetMouseButton(0))
+			{
+				EventSystem.current.SetSelectedGameObject(gameObject);
+				setFocusOnMouseUp = false;
+			}
+		}
+
+		public void Scrollbar_ValueChanged(float value)
+		{
+			if (suppressScrollbarChanged) return;
+			float size = cachedInputTextGenerator.rectExtents.size.y;
+			int firstLine = (int) Math.Round(value * (Scrollbar.numberOfSteps - 1));
+			int endLine = firstLine + 1;
+			float y = cachedInputTextGenerator.lines[firstLine].height;
+			for (; endLine < cachedInputTextGenerator.lineCount; ++endLine)
+			{
+				y += cachedInputTextGenerator.lines[endLine].height;
+				if (y > size) break;
+			}
+			m_DrawStart = cachedInputTextGenerator.lines[firstLine].startCharIdx;
+			m_DrawEnd = endLine >= cachedInputTextGenerator.lineCount ? cachedInputTextGenerator.characterCountVisible : cachedInputTextGenerator.lines[endLine].startCharIdx - 1;
+
+			// InputField does not allow the caret to be outside the visible area, so we must move it inside the visible area if it is outside.
+			if (caretPosition < m_DrawStart) caretPosition = m_DrawStart;
+			else if (caretPosition > m_DrawEnd) caretPosition = m_DrawEnd;
+
+			UpdateLabelWithoutResettingViewRange();
+			setFocusOnMouseUp |= Input.GetMouseButton(0);
+			Scroll?.Invoke(this, EventArgs.Empty);
+		}
+
+		public void OnScroll(PointerEventData e)
+		{
+			if (Scrollbar != null && Scrollbar.numberOfSteps > 1)
+			{
+				Scrollbar.value -= e.scrollDelta.y / (Scrollbar.numberOfSteps - 1);
+				Scroll?.Invoke(this, EventArgs.Empty);
+			}
+		}
 
 		public override void OnUpdateSelected(BaseEventData eventData)
 		{
@@ -35,6 +111,37 @@ namespace DynamicMissionGeneratorAssembly
 				eventData.Use();
 			}
 		}
+
+		protected void SuppressSelectAll(Action action)
+		{
+			int prevAnchorPosition = selectionAnchorPosition, prevCaretPosition = selectionFocusPosition, prevDrawStart = m_DrawStart, prevDrawEnd = m_DrawEnd;
+			action();
+			selectionAnchorPosition = prevAnchorPosition;
+			selectionFocusPosition = prevCaretPosition;
+			m_DrawStart = prevDrawStart;
+			m_DrawEnd = prevDrawEnd;
+			UpdateLabelWithoutResettingViewRange();
+		}
+
+		protected void UpdateLabelWithoutResettingViewRange()
+		{
+			if (isFocused)
+				UpdateLabel();
+			else
+			{
+				allowInputField.SetValue(this, true);  // This must be hacked to prevent InputField from forcing the draw range to the start of the text.
+				UpdateLabel();
+				allowInputField.SetValue(this, false);
+			}
+		}
+
+		protected override void LateUpdate()
+		{
+			if ((bool) shouldActivateNextUpdateField.GetValue(this)) SuppressSelectAll(base.LateUpdate);
+			else base.LateUpdate();
+		}
+		public override void OnSelect(BaseEventData e) => SuppressSelectAll(() => base.OnSelect(e));
+		public override void OnDeselect(BaseEventData e) => SuppressSelectAll(() => base.OnDeselect(e));
 
 		private new EditState KeyPressed(Event e)
 		{
@@ -99,6 +206,7 @@ namespace DynamicMissionGeneratorAssembly
 				clickPoint = Input.mousePosition;
 			}
 		}
+
 
 		internal new int GetCharacterIndexFromPosition(Vector2 position) => base.GetCharacterIndexFromPosition(position);
 
