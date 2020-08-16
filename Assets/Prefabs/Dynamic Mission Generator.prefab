@@ -26,7 +26,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 4294967295
   m_IsActive: 1
 --- !u!4 &4158705746371344
 Transform:
@@ -63,6 +63,8 @@ MonoBehaviour:
   m_Script: {fileID: -1789008462, guid: 6a620cae91c3f7f4287952f7f4b3027f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MissionCreationPagePrefab: {fileID: 114463166849620854, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
+  MissionCreationPagePrefab: {fileID: 114106062240195562, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
+    type: 2}
+  MissionsPagePrefab: {fileID: 114934725460632284, guid: 92ea802aa15dcfd4f85e7e8675a94d16,
     type: 2}
   ModSelectorIcon: {fileID: 2800000, guid: 83c2097b2316b5c4f8677cf098399300, type: 3}

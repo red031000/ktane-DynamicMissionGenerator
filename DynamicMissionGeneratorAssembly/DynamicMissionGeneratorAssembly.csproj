@@ -57,6 +57,14 @@
       <HintPath>C:\Program Files\Unity\Editor\Data\UnityExtensions\Unity\GUISystem\UnityEngine.UI.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>C:\Program Files\Unity\Editor\Data\Managed\UnityEngine\UnityEngine.UIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>C:\Program Files\Unity\Editor\Data\Managed\UnityEngine\UnityEngine.UnityWebRequestModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\DynamicMissionGenerator.cs" />
@@ -67,6 +75,10 @@
     <Compile Include="src\ModuleListItem.cs" />
     <Compile Include="src\ReflectionHelper.cs" />
     <Compile Include="src\Tuple.cs" />
+    <Compile Include="src\UIElement.cs" />
+    <Compile Include="src\MissionsPage.cs" />
+    <Compile Include="src\Prompt.cs" />
+    <Compile Include="src\Alert.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

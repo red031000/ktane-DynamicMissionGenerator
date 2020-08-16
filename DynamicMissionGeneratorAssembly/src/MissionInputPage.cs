@@ -9,17 +9,20 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using static DynamicMissionGeneratorAssembly.MissionsPage;
 
 namespace DynamicMissionGeneratorAssembly
 {
 	public class MissionInputPage : MonoBehaviour
 	{
+		public KMSelectable SwitchButtonSelectable;
 		public KMSelectable RunButtonSelectable;
 		public InputField InputField;
 		public KMGameCommands GameCommands;
 		public ModuleListItem ModuleListItemPrefab;
 		public RectTransform ModuleList;
 		public Scrollbar Scrollbar;
+		public Text MissionText;
 		private readonly List<GameObject> listItems = new List<GameObject>();
 
 		public KMAudio Audio;
@@ -42,6 +45,8 @@ namespace DynamicMissionGeneratorAssembly
 
 		public void Start()
 		{
+			Action<string> goToPage = (Action<string>)DynamicMissionGenerator.ModSelectorApi["GoToPageMethod"];
+			SwitchButtonSelectable.OnInteract += () => { goToPage("PageTwo"); return false; };
 			RunButtonSelectable.OnInteract += RunInteract;
 			_elevatorRoomType = ReflectionHelper.FindType("ElevatorRoom");
 			_gameplayStateType = ReflectionHelper.FindType("GameplayState");
@@ -94,6 +99,13 @@ namespace DynamicMissionGeneratorAssembly
 					}
 				}
 			}
+		}
+
+		internal void LoadMission(Mission mission)
+		{
+			InputField.text = mission.Content;
+			MissionText.text = "Mission: " + mission.Name;
+			MissionText.color = Color.black;
 		}
 
 		private static void SetNormalColour(Selectable selectable, Color color)

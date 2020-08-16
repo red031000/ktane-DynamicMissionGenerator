@@ -9,6 +9,7 @@ namespace DynamicMissionGeneratorAssembly
 	public class DynamicMissionGenerator : MonoBehaviour
 	{
 		public KMSelectable MissionCreationPagePrefab;
+		public KMSelectable MissionsPagePrefab;
 		public Texture2D ModSelectorIcon;
 
 		public static IDictionary<string, object> ModSelectorApi;
@@ -37,6 +38,7 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			Action<KMSelectable> addPageMethod = (Action<KMSelectable>)ModSelectorApi["AddPageMethod"];
 			addPageMethod(MissionCreationPagePrefab);
+			addPageMethod(MissionsPagePrefab);
 
 			Action<string, KMSelectable, Texture2D> addHomePageMethod = (Action<string, KMSelectable, Texture2D>)ModSelectorApi["AddHomePageMethod"];
 			addHomePageMethod("Dynamic Mission Generator", MissionCreationPagePrefab, ModSelectorIcon);
