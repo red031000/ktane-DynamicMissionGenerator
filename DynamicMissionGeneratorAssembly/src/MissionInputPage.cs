@@ -10,11 +10,13 @@ using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using static DynamicMissionGeneratorAssembly.MissionsPage;
 
 namespace DynamicMissionGeneratorAssembly
 {
 	public class MissionInputPage : MonoBehaviour
 	{
+		public KMSelectable SwitchButtonSelectable;
 		public KMSelectable RunButtonSelectable;
 		public InputField InputField;
 		public KMGameCommands GameCommands;
@@ -24,6 +26,7 @@ namespace DynamicMissionGeneratorAssembly
 		public RectTransform ScrollView;
 		public ModuleListItem Tooltip;
 		public Text ErrorPopup;
+		public Text MissionText;
 		private readonly List<GameObject> listItems = new List<GameObject>();
 		private bool multipleBombsEnabled, factoryEnabled;
 
@@ -76,6 +79,8 @@ namespace DynamicMissionGeneratorAssembly
 			InputField.Scroll += InputField_Scroll;
 			InputField.Submit += (sender, e) => RunInteract();
 			InputField.TabPressed += InputField_TabPressed;
+			Action<string> goToPage = (Action<string>)DynamicMissionGenerator.ModSelectorApi["GoToPageMethod"];
+			SwitchButtonSelectable.OnInteract += () => { goToPage("PageTwo"); return false; };
 			RunButtonSelectable.OnInteract += RunInteract;
 			_elevatorRoomType = ReflectionHelper.FindType("ElevatorRoom");
 			_gameplayStateType = ReflectionHelper.FindType("GameplayState");
@@ -223,6 +228,13 @@ namespace DynamicMissionGeneratorAssembly
 					ShowPopup(ScrollView, array[0].position, array[3].position);
 				}
 			}
+		}
+
+		internal void LoadMission(Mission mission)
+		{
+			InputField.text = mission.Content;
+			MissionText.text = "Mission: " + mission.Name;
+			MissionText.color = Color.black;
 		}
 
 		private void ShowPopup(RectTransform popup, Vector3 cursorBottom, Vector3 cursorTop)
