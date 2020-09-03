@@ -222,6 +222,18 @@ namespace DynamicMissionGeneratorAssembly
 					}
 					prevCursorPosition = InputField.caretPosition;
 				}
+
+				// Add shortcuts like Ctrl+Backspace or Ctrl+Delete.
+				if ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) && Input.GetKeyDown(KeyCode.Backspace))
+				{
+					InputField.ProcessEvent(Event.KeyboardEvent("^#left"));
+					InputField.ProcessEvent(Event.KeyboardEvent("backspace"));
+				}
+				else if ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) && Input.GetKeyDown(KeyCode.Delete))
+				{
+					InputField.ProcessEvent(Event.KeyboardEvent("^#right"));
+					InputField.ProcessEvent(Event.KeyboardEvent("backspace"));
+				}
 			}
 		}
 
