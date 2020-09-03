@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -12,10 +14,21 @@ namespace DynamicMissionGeneratorAssembly
 		public KMSelectable MissionsPagePrefab;
 		public Texture2D ModSelectorIcon;
 
+		[HideInInspector]
+		public MissionInputPage InputPage;
+		[HideInInspector]
+		public MissionsPage MissionsPage;
+
 		public static IDictionary<string, object> ModSelectorApi;
+		public static DynamicMissionGenerator Instance;
+		public static string MissionsFolder = Path.Combine(Application.persistentDataPath, "DMGMissions");
 		private void Start()
 		{
+			Instance = this;
+
 			StartCoroutine(FindModSelector());
+
+			Directory.CreateDirectory(MissionsFolder);
 		}
 
 		private IEnumerator FindModSelector()

@@ -20,21 +20,20 @@ namespace DynamicMissionGeneratorAssembly
 		public Prompt Prompt;
 		public Alert Alert;
 
-		private string missionsFolder;
+		private string missionsFolder => DynamicMissionGenerator.MissionsFolder;
 		private Dictionary<string, Mission> missions = new Dictionary<string, Mission>();
 		private Mission contextMenuMission;
 
 		public void Start()
 		{
-			missionsFolder = Path.Combine(Application.persistentDataPath, "DMGMissions");
-
-			Directory.CreateDirectory(missionsFolder);
+			DynamicMissionGenerator.Instance.MissionsPage = this;
 
 			LoadMissions();
+			WatchMissions();
 
 			Action goBack = (Action)DynamicMissionGenerator.ModSelectorApi["GoBackMethod"];
 			SwitchSelectable.OnInteract += () => { goBack(); return false; };
-			
+
 			FolderSelectable.OnInteract += () => { Application.OpenURL($"file://{missionsFolder}"); return false; };
 
 			foreach (Transform button in ContextMenu.transform)
@@ -60,7 +59,7 @@ namespace DynamicMissionGeneratorAssembly
 						return;
 
 					SwitchSelectable.OnInteract();
-					FindObjectOfType<MissionInputPage>().LoadMission(mission);
+					DynamicMissionGenerator.Instance.InputPage.LoadMission(mission);
 				});
 
 				mission = new Mission(name, File.ReadAllText(file), item);
@@ -68,6 +67,24 @@ namespace DynamicMissionGeneratorAssembly
 			});
 
 			NoMissionsText.SetActive(missions.Count == 0);
+		}
+
+		private void WatchMissions()
+		{
+			void updateMissions(object _, FileSystemEventArgs __) 
+			{
+				LoadMissions();
+			}
+
+			var watcher = new FileSystemWatcher
+			{
+				Path = missionsFolder,
+				NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName
+			};
+			watcher.Created += updateMissions;
+			watcher.Changed += updateMissions;
+			watcher.Deleted += updateMissions;
+			watcher.EnableRaisingEvents = true;
 		}
 
 		private void Update()

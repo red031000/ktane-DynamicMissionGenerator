@@ -2154,7 +2154,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   SwitchButtonSelectable: {fileID: 114932499606425040}
+  SaveButtonSelectable: {fileID: 114189943950860264}
   RunButtonSelectable: {fileID: 114062371380268020}
+  CanvasTransform: {fileID: 224733807160341548}
   InputField: {fileID: 114247955189620888}
   GameCommands: {fileID: 114056420057743810}
   ModuleListItemPrefab: {fileID: 114353843722639552, guid: 387a7a00eea7d0744bf59657e4c518c5,
@@ -2165,6 +2167,8 @@ MonoBehaviour:
   Tooltip: {fileID: 114905871919050404}
   ErrorPopup: {fileID: 114424949621540354}
   MissionText: {fileID: 114902962674402382}
+  Prompt: {fileID: 114081787024161796, guid: 6866bbf7e87ac914ea35d56e3864ff47, type: 2}
+  Alert: {fileID: 114398417193012206, guid: 5970b168fc1667f4c8fab17ca35f9f4e, type: 2}
   Audio: {fileID: 114607533325047884}
   GameInfo: {fileID: 114768207157439412}
 --- !u!114 &114851077538643188

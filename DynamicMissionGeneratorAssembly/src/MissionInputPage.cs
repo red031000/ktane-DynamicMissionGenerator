@@ -17,7 +17,9 @@ namespace DynamicMissionGeneratorAssembly
 	public class MissionInputPage : MonoBehaviour
 	{
 		public KMSelectable SwitchButtonSelectable;
+		public KMSelectable SaveButtonSelectable;
 		public KMSelectable RunButtonSelectable;
+		public RectTransform CanvasTransform;
 		public InputField InputField;
 		public KMGameCommands GameCommands;
 		public ModuleListItem ModuleListItemPrefab;
@@ -27,6 +29,10 @@ namespace DynamicMissionGeneratorAssembly
 		public ModuleListItem Tooltip;
 		public Text ErrorPopup;
 		public Text MissionText;
+		public Prompt Prompt;
+		public Alert Alert;
+
+		private string missionName;
 		private readonly List<GameObject> listItems = new List<GameObject>();
 		private bool multipleBombsEnabled, factoryEnabled;
 
@@ -76,11 +82,14 @@ namespace DynamicMissionGeneratorAssembly
 
 		public void Start()
 		{
+			DynamicMissionGenerator.Instance.InputPage = this;
+
 			InputField.Scroll += InputField_Scroll;
 			InputField.Submit += (sender, e) => RunInteract();
 			InputField.TabPressed += InputField_TabPressed;
 			Action<string> goToPage = (Action<string>)DynamicMissionGenerator.ModSelectorApi["GoToPageMethod"];
 			SwitchButtonSelectable.OnInteract += () => { goToPage("PageTwo"); return false; };
+			SaveButtonSelectable.OnInteract += SaveInteract;
 			RunButtonSelectable.OnInteract += RunInteract;
 			_elevatorRoomType = ReflectionHelper.FindType("ElevatorRoom");
 			_gameplayStateType = ReflectionHelper.FindType("GameplayState");
@@ -235,6 +244,7 @@ namespace DynamicMissionGeneratorAssembly
 			InputField.text = mission.Content;
 			MissionText.text = "Mission: " + mission.Name;
 			MissionText.color = Color.black;
+			missionName = mission.Name;
 		}
 
 		private void ShowPopup(RectTransform popup, Vector3 cursorBottom, Vector3 cursorTop)
@@ -259,6 +269,22 @@ namespace DynamicMissionGeneratorAssembly
 			var colours = selectable.colors;
 			colours.normalColor = color;
 			selectable.colors = colours;
+		}
+
+		private bool SaveInteract()
+		{
+			Prompt.MakePrompt("Save Mission", missionName ?? "New Mission", CanvasTransform, name => {
+				var targetPath = Path.Combine(DynamicMissionGenerator.MissionsFolder, name + ".txt");
+				if (File.Exists(targetPath))
+				{
+					Alert.MakeAlert("Mission Exists", "A mission with that name already exists.", CanvasTransform);
+					return;
+				}
+
+				File.WriteAllText(targetPath, InputField.text);
+				LoadMission(new Mission(name, InputField.text, null));
+			});
+			return false;
 		}
 
 		private bool RunInteract()
