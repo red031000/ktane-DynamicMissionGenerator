@@ -21,7 +21,7 @@ namespace DynamicMissionGeneratorAssembly
 
 		public static IDictionary<string, object> ModSelectorApi;
 		public static DynamicMissionGenerator Instance;
-		public static string MissionsFolder = Path.Combine(Application.persistentDataPath, "DMGMissions");
+		public static string MissionsFolder => Path.Combine(Application.persistentDataPath, "DMGMissions");
 		private void Start()
 		{
 			Instance = this;
