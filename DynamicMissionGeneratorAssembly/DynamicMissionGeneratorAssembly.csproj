@@ -82,6 +82,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="src\DynamicMissionGeneratorApi.cs" />
     <Compile Include="src\DynamicMissionGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="src\GeneralExtensions.cs" />

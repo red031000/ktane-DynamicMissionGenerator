@@ -152,6 +152,21 @@ Prefab:
       propertyPath: m_RootOrder
       value: 3
       objectReference: {fileID: 0}
+    - target: {fileID: 224371328920630600, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
+        type: 2}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 224371328920630600, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
+        type: 2}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 114818368652261218, guid: 4e93eb5b09d4e1f44b091de83d8f48db,
+        type: 2}
+      propertyPath: m_Text
+      value: Enter text; press Run or Ctrl+Enter to run.
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: a681a9b37e1e47f49b7027719d60ea19, type: 2}
   m_IsPrefabParent: 0
