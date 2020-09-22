@@ -82,23 +82,26 @@ namespace DynamicMissionGeneratorAssembly
 
 		public void Start()
 		{
-			DynamicMissionGenerator.Instance.InputPage = this;
-
 			InputField.Scroll += InputField_Scroll;
 			InputField.Submit += (sender, e) => RunInteract();
 			InputField.TabPressed += InputField_TabPressed;
-			Action<string> goToPage = (Action<string>)DynamicMissionGenerator.ModSelectorApi["GoToPageMethod"];
-			SwitchButtonSelectable.OnInteract += () => { goToPage("PageTwo"); return false; };
-			SaveButtonSelectable.OnInteract += SaveInteract;
-			RunButtonSelectable.OnInteract += RunInteract;
-			_elevatorRoomType = ReflectionHelper.FindType("ElevatorRoom");
-			_gameplayStateType = ReflectionHelper.FindType("GameplayState");
-			if (_gameplayStateType != null)
-				_gameplayroomPrefabOverrideField = _gameplayStateType.GetField("GameplayRoomPrefabOverride", BindingFlags.Public | BindingFlags.Static);
 
-			// KMModSettings is not used here because this isn't strictly a configuration option.
-			string path = Path.Combine(Application.persistentDataPath, "LastDynamicMission.txt");
-			if (File.Exists(path)) InputField.text = File.ReadAllText(path);
+			if (!Application.isEditor)
+			{
+				DynamicMissionGenerator.Instance.InputPage = this;
+				Action<string> goToPage = (Action<string>) DynamicMissionGenerator.ModSelectorApi["GoToPageMethod"];
+				SwitchButtonSelectable.OnInteract += () => { goToPage("PageTwo"); return false; };
+				SaveButtonSelectable.OnInteract += SaveInteract;
+				RunButtonSelectable.OnInteract += RunInteract;
+				_elevatorRoomType = ReflectionHelper.FindType("ElevatorRoom");
+				_gameplayStateType = ReflectionHelper.FindType("GameplayState");
+				if (_gameplayStateType != null)
+					_gameplayroomPrefabOverrideField = _gameplayStateType.GetField("GameplayRoomPrefabOverride", BindingFlags.Public | BindingFlags.Static);
+
+				// KMModSettings is not used here because this isn't strictly a configuration option.
+				string path = Path.Combine(Application.persistentDataPath, "LastDynamicMission.txt");
+				if (File.Exists(path)) InputField.text = File.ReadAllText(path);
+			}
 		}
 
 		private void InputField_TabPressed(object sender, InputField.TabPressedEventArgs e)

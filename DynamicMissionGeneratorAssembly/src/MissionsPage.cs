@@ -26,6 +26,7 @@ namespace DynamicMissionGeneratorAssembly
 
 		public void Start()
 		{
+			if (Application.isEditor) return;
 			DynamicMissionGenerator.Instance.MissionsPage = this;
 
 			LoadMissions();
