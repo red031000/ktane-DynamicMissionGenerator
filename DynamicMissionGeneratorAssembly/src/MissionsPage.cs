@@ -118,11 +118,11 @@ namespace DynamicMissionGeneratorAssembly
 			switch (button.name)
 			{
 				case "Rename":
-					Prompt.MakePrompt("Rename Mission", contextMenuMission.Name, CanvasTransform, name => {
+					Prompt.MakePrompt("Rename Mission", contextMenuMission.Name, CanvasTransform, SwitchSelectable.Parent, name => {
 						var targetPath = Path.Combine(missionsFolder, name + ".txt");
 						if (File.Exists(targetPath))
 						{
-							Alert.MakeAlert("Mission Exists", "A mission with that name already exists.", CanvasTransform);
+							Alert.MakeAlert("Mission Exists", "A mission with that name already exists.", CanvasTransform, SwitchSelectable.Parent);
 							return;
 						}
 
@@ -131,11 +131,11 @@ namespace DynamicMissionGeneratorAssembly
 					});
 					break;
 				case "Duplicate":
-					Prompt.MakePrompt("New Mission Name", contextMenuMission.Name + " (Copy)", CanvasTransform, name => {
+					Prompt.MakePrompt("New Mission Name", contextMenuMission.Name + " (Copy)", CanvasTransform, SwitchSelectable.Parent, name => {
 						var targetPath = Path.Combine(missionsFolder, name + ".txt");
 						if (File.Exists(targetPath))
 						{
-							Alert.MakeAlert("Mission Exists", "A mission with that name already exists.", CanvasTransform);
+							Alert.MakeAlert("Mission Exists", "A mission with that name already exists.", CanvasTransform, SwitchSelectable.Parent);
 							return;
 						}
 

@@ -285,11 +285,13 @@ namespace DynamicMissionGeneratorAssembly
 
 		private bool SaveInteract()
 		{
-			Prompt.MakePrompt("Save Mission", missionName ?? "New Mission", CanvasTransform, name => {
+			// When the Mod Selector page is displayed, its KMSelectables are reassigned to the Mod Selector tablet itself.
+			// We need to add the OK button to it, so SaveButtonSelectable.Parent is used to reference the tablet.
+			Prompt.MakePrompt("Save Mission", missionName ?? "New Mission", CanvasTransform, SaveButtonSelectable.Parent, name => {
 				var targetPath = Path.Combine(DynamicMissionGenerator.MissionsFolder, name + ".txt");
 				if (File.Exists(targetPath))
 				{
-					Alert.MakeAlert("Mission Exists", "A mission with that name already exists.", CanvasTransform);
+					Alert.MakeAlert("Mission Exists", "A mission with that name already exists.", CanvasTransform, GetComponent<KMSelectable>());
 					return;
 				}
 

@@ -479,6 +479,7 @@ GameObject:
   - component: {fileID: 114056420057743810}
   - component: {fileID: 114607533325047884}
   - component: {fileID: 114768207157439412}
+  - component: {fileID: 65224506785950622}
   m_Layer: 0
   m_Name: PageOne
   m_TagString: Untagged
@@ -1080,6 +1081,18 @@ MeshFilter:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1929612673042504}
   m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!65 &65224506785950622
+BoxCollider:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1778830438544396}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!65 &65250186699276298
 BoxCollider:
   m_ObjectHideFlags: 1
@@ -1491,8 +1504,11 @@ MonoBehaviour:
   - {fileID: 114932499606425040}
   - {fileID: 114189943950860264}
   - {fileID: 114062371380268020}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   IsPassThrough: 0
-  ChildRowLength: 1
+  ChildRowLength: 3
   Highlight: {fileID: 0}
   SelectableColliders: []
   DefaultSelectableIndex: 0

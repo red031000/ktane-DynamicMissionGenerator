@@ -13,10 +13,17 @@ namespace DynamicMissionGeneratorAssembly
 
 		private Action<string> OnConfirm;
 
-		public Prompt MakePrompt(string title, string defaultValue, Transform parent, Action<string> confirm)
+		public Prompt MakePrompt(string title, string defaultValue, Transform parent, KMSelectable parentSelectable, Action<string> confirm)
 		{
 			var prompt = Instantiate(gameObject, parent).GetComponent<Prompt>();
 			prompt.SetupPrompt(title, defaultValue, confirm);
+
+			var confirmSelectable = prompt.Confirm.GetComponent<KMSelectable>();
+			var cancelSelectable = prompt.Cancel.GetComponent<KMSelectable>();
+			confirmSelectable.Parent = cancelSelectable.Parent = parentSelectable;
+			parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength] = confirmSelectable;
+			parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength + 1] = cancelSelectable;
+			parentSelectable.UpdateChildren();
 
 			return prompt;
 		}
@@ -26,23 +33,10 @@ namespace DynamicMissionGeneratorAssembly
 			Title.text = title;
 			Input.text = defaultValue;
 			Confirm.onClick.AddListener(() => closePrompt(true));
+			Confirm.GetComponent<KMSelectable>().OnInteract += () => { closePrompt(true); return false; };
 			Cancel.onClick.AddListener(() => closePrompt(false));
 			OnConfirm = confirm;
-		}
-
-		public Prompt MakeAlert(string title, string text, Transform parent)
-		{
-			var prompt = Instantiate(gameObject, parent).GetComponent<Prompt>();
-			prompt.SetupAlert(title, text);
-
-			return prompt;
-		}
-
-		private void SetupAlert(string title, string text)
-		{
-			Title.text = title;
-			Confirm.onClick.AddListener(() => closePrompt(true));
-			Cancel.onClick.AddListener(() => closePrompt(false));
+			Cancel.GetComponent<KMSelectable>().OnInteract += () => { closePrompt(false); return false; };
 		}
 
 		private void closePrompt(bool confirmed)
@@ -50,6 +44,13 @@ namespace DynamicMissionGeneratorAssembly
 			if (confirmed)
 				OnConfirm(Input.text);
 
+			var parentSelectable = Confirm.GetComponent<KMSelectable>().Parent;
+			if (parentSelectable != null)
+			{
+				parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength] = null;
+				parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength + 1] = null;
+				parentSelectable.UpdateChildren();
+			}
 			Destroy(gameObject);
 		}
 	}

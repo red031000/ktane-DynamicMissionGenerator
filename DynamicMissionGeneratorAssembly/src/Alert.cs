@@ -9,10 +9,20 @@ namespace DynamicMissionGeneratorAssembly
 		public Text Title;
 		public Text Message;
 
-		public Alert MakeAlert(string title, string text, Transform parent)
+		public void OnDestroy()
+		{
+
+		}
+
+		public Alert MakeAlert(string title, string text, Transform parent, KMSelectable parentSelectable)
 		{
 			var alert = Instantiate(gameObject, parent).GetComponent<Alert>();
 			alert.SetupAlert(title, text);
+
+			var selectable = alert.Ok.GetComponent<KMSelectable>();
+			selectable.Parent = parentSelectable;
+			parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength] = selectable;
+			parentSelectable.UpdateChildren();
 
 			return alert;
 		}
@@ -21,7 +31,19 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			Title.text = title;
 			Message.text = text;
-			Ok.onClick.AddListener(() => Destroy(gameObject));
+			Ok.onClick.AddListener(closeAlert);
+			Ok.GetComponent<KMSelectable>().OnInteract += () => { closeAlert(); return false; };
+		}
+
+		private void closeAlert()
+		{
+			var parentSelectable = Ok.GetComponent<KMSelectable>().Parent;
+			if (parentSelectable != null)
+			{
+				parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength] = null;
+				parentSelectable.UpdateChildren();
+			}
+			Destroy(gameObject);
 		}
 	}
 }
