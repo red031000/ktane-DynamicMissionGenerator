@@ -770,10 +770,10 @@ namespace DynamicMissionGeneratorAssembly
 						if (currentBomb == null)
 						{
 							newBomb();
-							timeSpecified = defaultTime.HasValue;
-							strikesSpecified = defaultStrikes.HasValue;
-							needyActivationTimeSpecified = defaultNeedyActivationTime.HasValue;
-							widgetCountSpecified = defaultWidgetCount.HasValue;
+							if (defaultTime.HasValue) { timeSpecified = true; currentBomb.TimeLimit = defaultTime.Value; }
+							if (defaultStrikes.HasValue) { strikesSpecified = true; currentBomb.NumStrikes = defaultStrikes.Value; }
+							if (defaultNeedyActivationTime.HasValue) { needyActivationTimeSpecified = true; currentBomb.TimeBeforeNeedyActivation = defaultNeedyActivationTime.Value; }
+							if (defaultWidgetCount.HasValue) { widgetCountSpecified = true; currentBomb.OptionalWidgetCount = defaultWidgetCount.Value; }
 						}
 					}
 					else
