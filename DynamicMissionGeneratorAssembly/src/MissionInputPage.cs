@@ -32,6 +32,7 @@ namespace DynamicMissionGeneratorAssembly
 		public Text MissionText;
 		public Prompt Prompt;
 		public Alert Alert;
+		public Confirmation Confirmation;
 
 		private string missionName;
 		private readonly List<GameObject> listItems = new List<GameObject>();
@@ -289,18 +290,23 @@ namespace DynamicMissionGeneratorAssembly
 
 		private bool SaveInteract()
 		{
+			void saveMission(string targetPath, string name)
+			{
+				File.WriteAllText(targetPath, InputField.text);
+				LoadMission(new Mission(name, InputField.text, null));
+			}
+
 			// When the Mod Selector page is displayed, its KMSelectables are reassigned to the Mod Selector tablet itself.
 			// We need to add the OK button to it, so SaveButtonSelectable.Parent is used to reference the tablet.
 			Prompt.MakePrompt("Save Mission", missionName ?? "New Mission", CanvasTransform, SaveButtonSelectable.Parent, name => {
 				var targetPath = Path.Combine(DynamicMissionGenerator.MissionsFolder, name + ".txt");
-				if (File.Exists(targetPath))
+				if (missionName != name && File.Exists(targetPath))
 				{
-					Alert.MakeAlert("Mission Exists", "A mission with that name already exists.", CanvasTransform, GetComponent<KMSelectable>());
+					Confirmation.MakeConfirmation("Overwrite Mission?", "A mission with that name already exists, do you want to overwrite it?", CanvasTransform, SaveButtonSelectable.Parent, () => saveMission(targetPath, name));
 					return;
 				}
 
-				File.WriteAllText(targetPath, InputField.text);
-				LoadMission(new Mission(name, InputField.text, null));
+				saveMission(targetPath, name);
 			});
 			return false;
 		}

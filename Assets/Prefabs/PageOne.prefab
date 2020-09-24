@@ -2185,6 +2185,8 @@ MonoBehaviour:
   MissionText: {fileID: 114902962674402382}
   Prompt: {fileID: 114081787024161796, guid: 6866bbf7e87ac914ea35d56e3864ff47, type: 2}
   Alert: {fileID: 114398417193012206, guid: 5970b168fc1667f4c8fab17ca35f9f4e, type: 2}
+  Confirmation: {fileID: 114951732455715112, guid: 293885642899be242914b92e117491ec,
+    type: 2}
   Audio: {fileID: 114607533325047884}
   GameInfo: {fileID: 114768207157439412}
 --- !u!114 &114851077538643188
