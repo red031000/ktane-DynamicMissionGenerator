@@ -145,6 +145,8 @@ namespace DynamicMissionGeneratorAssembly
 
 		private new EditState KeyPressed(Event e)
 		{
+			bool onlyControl = (e.control || e.command) && !e.shift && !e.alt;
+
 			switch (e.keyCode)
 			{
 				case KeyCode.Home:
@@ -165,6 +167,14 @@ namespace DynamicMissionGeneratorAssembly
 						if (!e.shift) caretPositionInternal = endOfLine;
 						caretSelectPositionInternal = endOfLine;
 					}
+					return EditState.Continue;
+				case KeyCode.Backspace when onlyControl:
+					ProcessEvent(Event.KeyboardEvent("^#left"));
+					ProcessEvent(Event.KeyboardEvent("backspace"));
+					return EditState.Continue;
+				case KeyCode.Delete when onlyControl:
+					ProcessEvent(Event.KeyboardEvent("^#right"));
+					ProcessEvent(Event.KeyboardEvent("backspace"));
 					return EditState.Continue;
 				default:
 					switch (e.character)
