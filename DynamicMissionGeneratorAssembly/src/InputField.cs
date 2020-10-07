@@ -25,6 +25,7 @@ namespace DynamicMissionGeneratorAssembly
 
 		private float clickTime;
 		private Vector2 clickPoint;
+		private int clickCount;
 		private string prevDrawText = "";
 		private bool suppressScrollbarChanged;
 		private bool setFocusOnMouseUp;
@@ -216,24 +217,46 @@ namespace DynamicMissionGeneratorAssembly
 			}
 		}
 
-		public override void OnPointerClick(PointerEventData e)
+		private void SelectBetween(char[] characters)
 		{
-			base.OnPointerClick(e);
+			int left = caretSelectPositionInternal == 0 ? 0 : (text.LastIndexOfAny(characters, caretSelectPositionInternal - 1) + 1);
+			int right = text.IndexOfAny(characters, caretSelectPositionInternal);
+			if (right < 0) right = text.Length;
+			caretPositionInternal = left;
+			caretSelectPositionInternal = right;
+			UpdateLabel();
+		}
+
+		public override void OnPointerDown(PointerEventData e)
+		{
 			if (e.button == PointerEventData.InputButton.Left)
 			{
-				if ((Vector2) Input.mousePosition == clickPoint && Time.time - clickTime < 0.5f)
+				if ((Vector2) Input.mousePosition == clickPoint && Time.time - clickTime <= 0.5f)
 				{
-					int left = caretSelectPositionInternal == 0 ? 0 : (text.LastIndexOfAny(separators, caretSelectPositionInternal - 1) + 1);
-					int right = text.IndexOfAny(separators, caretSelectPositionInternal);
-					if (right < 0) right = text.Length;
-					caretPositionInternal = left;
-					caretSelectPositionInternal = right;
-					UpdateLabel();
-					clickTime = 0;
+					switch (++clickCount)
+					{
+						case 1:
+							SelectBetween(separators);
+							break;
+						case 2:
+							SelectBetween(new[] { '\n', '\r' });
+							break;
+						case 3:
+							SelectAll();
+							break;
+					}
 				}
-				else clickTime = Time.time;
+				else
+				{
+					clickCount = 0;
+				}
+
+				clickTime = Time.time;
 				clickPoint = Input.mousePosition;
 			}
+
+			if (clickCount == 0)
+				base.OnPointerDown(e);
 		}
 
 
