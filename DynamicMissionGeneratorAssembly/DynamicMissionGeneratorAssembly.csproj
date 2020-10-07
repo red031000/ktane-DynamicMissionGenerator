@@ -97,6 +97,7 @@
     <Compile Include="src\Prompt.cs" />
     <Compile Include="src\Alert.cs" />
     <Compile Include="src\Confirmation.cs" />
+    <Compile Include="src\UndoManager.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

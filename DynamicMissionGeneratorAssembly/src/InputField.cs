@@ -28,9 +28,12 @@ namespace DynamicMissionGeneratorAssembly
 		private string prevDrawText = "";
 		private bool suppressScrollbarChanged;
 		private bool setFocusOnMouseUp;
+		private readonly UndoManager undoManager = new UndoManager();
 
 		public void Update()
 		{
+			undoManager.Track(text, caretPosition);
+
 			// Update the scroll bar.
 			if (Scrollbar != null && textComponent.text != prevDrawText)
 			{
@@ -175,6 +178,22 @@ namespace DynamicMissionGeneratorAssembly
 				case KeyCode.Delete when onlyControl:
 					ProcessEvent(Event.KeyboardEvent("^#right"));
 					ProcessEvent(Event.KeyboardEvent("backspace"));
+					return EditState.Continue;
+				case KeyCode.Z when onlyControl:
+					UndoManager.State state = undoManager.Undo();
+					if (state != null)
+					{
+						text = state.Text;
+						caretPosition = state.CursorPosition;
+					}
+					return EditState.Continue;
+				case KeyCode.Y when onlyControl:
+					UndoManager.State state2 = undoManager.Redo();
+					if (state2 != null)
+					{
+						text = state2.Text;
+						caretPosition = state2.CursorPosition;
+					}
 					return EditState.Continue;
 				default:
 					switch (e.character)
