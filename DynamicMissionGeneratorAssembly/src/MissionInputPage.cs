@@ -5,12 +5,14 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
+
 using Newtonsoft.Json;
+
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+
 using static DynamicMissionGeneratorAssembly.MissionsPage;
 
 namespace DynamicMissionGeneratorAssembly
@@ -48,7 +50,7 @@ namespace DynamicMissionGeneratorAssembly
 				(?<Close>\))|
 				(?:time:)?(?<Time1>\d{1,9}):(?<Time2>\d{1,9})(?::(?<Time3>\d{1,9}))?(?!\S)|
 				(?<Strikes>\d{1,9})X(?!\S)|
-				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory)(?::(?<Value>\S*))?|
+				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|ruleseed)(?::(?<Value>\S*))?|
 				(?:(?<Count>\d{1,9})\s*[;*]\s*)?
 				(?:
 					(?<Open>\()|
@@ -286,7 +288,8 @@ namespace DynamicMissionGeneratorAssembly
 
 			// When the Mod Selector page is displayed, its KMSelectables are reassigned to the Mod Selector tablet itself.
 			// We need to add the OK button to it, so SaveButtonSelectable.Parent is used to reference the tablet.
-			Prompt.MakePrompt("Save Mission", missionName ?? "New Mission", CanvasTransform, SaveButtonSelectable.Parent, name => {
+			Prompt.MakePrompt("Save Mission", missionName ?? "New Mission", CanvasTransform, SaveButtonSelectable.Parent, name =>
+			{
 				var targetPath = Path.Combine(DynamicMissionGenerator.MissionsFolder, name + ".txt");
 				if (missionName != name && File.Exists(targetPath))
 				{
@@ -309,7 +312,7 @@ namespace DynamicMissionGeneratorAssembly
 				return false;
 			}
 
-			bool success = ParseTextToMission(InputField.text, out KMMission mission, out var messages);
+			bool success = ParseTextToMission(InputField.text, out KMMission mission, out int? ruleseed, out var messages);
 			if (!success)
 			{
 				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
@@ -334,6 +337,14 @@ namespace DynamicMissionGeneratorAssembly
 				Debug.LogError("[Dynamic Mission Generator] Could not write LastDynamicMission.txt");
 				Debug.LogException(ex, this);
 			}
+
+			if (ruleseed != null)
+			{
+				var obj = GameObject.Find("VanillaRuleModifierProperties");
+				var dic = obj?.GetComponent<IDictionary<string, object>>();
+				dic["RuleSeed"] = new object[] { ruleseed, true };
+			}
+
 			GameCommands.StartMission(mission, "-1");
 
 			return false;
@@ -535,6 +546,7 @@ namespace DynamicMissionGeneratorAssembly
 			moduleData.Add(new ModuleData("frontonly", "[Front face only]"));
 			moduleData.Add(new ModuleData("nopacing", "[Disable pacing events]"));
 			moduleData.Add(new ModuleData("widgets:", "[Set widget count]"));
+			moduleData.Add(new ModuleData("ruleseed:", "[Set rule seed]"));
 			moduleData.Add(new ModuleData("needyactivationtime:", "[Set needy activation time in seconds]"));
 			if (factoryEnabled) moduleData.Add(new ModuleData("factory:", "[Set Factory mode]"));
 			moduleData.Add(new ModuleData("Wires", "Wires"));
@@ -637,7 +649,7 @@ namespace DynamicMissionGeneratorAssembly
 			}
 		}
 
-		private bool ParseTextToMission(string text, out KMMission mission, out List<string> messages)
+		private bool ParseTextToMission(string text, out KMMission mission, out int? ruleseed, out List<string> messages)
 		{
 			messages = new List<string>();
 
@@ -654,9 +666,9 @@ namespace DynamicMissionGeneratorAssembly
 			List<KMGeneratorSetting> bombs = null;
 
 			int bombRepeatCount = 0;
-			int? defaultTime = null, defaultStrikes = null, defaultNeedyActivationTime = null, defaultWidgetCount = null;
+			int? defaultTime = null, defaultStrikes = null, defaultNeedyActivationTime = null, defaultWidgetCount = null, defaultRuleSeed = null;
 			bool defaultFrontOnly = false;
-			bool timeSpecified = false, strikesSpecified = false, needyActivationTimeSpecified = false, widgetCountSpecified = false;
+			bool timeSpecified = false, strikesSpecified = false, needyActivationTimeSpecified = false, widgetCountSpecified = false, ruleSeedSpecified = false;
 			bool anySolvableModules = false;
 			int? factoryMode = null;
 
@@ -667,7 +679,7 @@ namespace DynamicMissionGeneratorAssembly
 			void newBomb()
 			{
 				currentBomb = new KMGeneratorSetting() { FrontFaceOnly = defaultFrontOnly };
-				timeSpecified = strikesSpecified = needyActivationTimeSpecified = widgetCountSpecified = anySolvableModules = false;
+				timeSpecified = strikesSpecified = needyActivationTimeSpecified = widgetCountSpecified = ruleSeedSpecified = anySolvableModules = false;
 				pools = new List<KMComponentPool>();
 				currentBombModuleProfiles = new List<string>();
 			}
@@ -759,6 +771,19 @@ namespace DynamicMissionGeneratorAssembly
 								}
 							}
 							break;
+						case "ruleseed":
+							if (ruleSeedSpecified) messages.Add("Rule seed specified multiple times");
+							ruleSeedSpecified = true;
+
+							if (match.Groups["Value"].Value == "random")
+								defaultRuleSeed = null;
+							else
+							{
+								var ruleSeed = int.Parse(match.Groups["Value"].Value);
+								if (ruleSeed < 0) messages.Add("Invalid rule seed");
+								defaultRuleSeed = ruleSeed;
+							}
+							break;
 					}
 				}
 				else if (match.Groups["ID"].Success)
@@ -773,6 +798,7 @@ namespace DynamicMissionGeneratorAssembly
 							if (defaultStrikes.HasValue) { strikesSpecified = true; currentBomb.NumStrikes = defaultStrikes.Value; }
 							if (defaultNeedyActivationTime.HasValue) { needyActivationTimeSpecified = true; currentBomb.TimeBeforeNeedyActivation = defaultNeedyActivationTime.Value; }
 							if (defaultWidgetCount.HasValue) { widgetCountSpecified = true; currentBomb.OptionalWidgetCount = defaultWidgetCount.Value; }
+							if (defaultRuleSeed.HasValue) { ruleSeedSpecified = true; }
 						}
 					}
 					else
@@ -935,6 +961,17 @@ namespace DynamicMissionGeneratorAssembly
 				}
 			}
 			else if (bombs.Count == 0) messages.Add("No solvable modules");
+
+			ruleseed = null;
+			if (ruleSeedSpecified)
+			{
+				var obj = GameObject.Find("VanillaRuleModifierProperties");
+				var dic = obj?.GetComponent<IDictionary<string, object>>();
+				if (obj == null || dic == null)
+					messages.Add("Rule seed modifier mod is not installed or disabled.");
+				else
+					ruleseed = defaultRuleSeed ?? UnityEngine.Random.Range(1, 1000);
+			}
 
 			if (messages.Count > 0)
 			{
