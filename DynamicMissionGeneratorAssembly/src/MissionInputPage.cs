@@ -772,7 +772,8 @@ namespace DynamicMissionGeneratorAssembly
 							}
 							break;
 						case "ruleseed":
-							if (ruleSeedSpecified) messages.Add("Rule seed specified multiple times");
+							if (bombs != null && currentBomb != null) messages.Add("Rule seed cannot be a bomb-level setting");
+							else if (ruleSeedSpecified) messages.Add("Rule seed specified multiple times");
 							ruleSeedSpecified = true;
 
 							if (match.Groups["Value"].Value == "random")
