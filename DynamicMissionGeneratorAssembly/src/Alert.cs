@@ -38,7 +38,7 @@ namespace DynamicMissionGeneratorAssembly
 		private void closeAlert()
 		{
 			var parentSelectable = Ok.GetComponent<KMSelectable>().Parent;
-			if (parentSelectable != null)
+			if (parentSelectable != null && parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength]?.gameObject == Ok.gameObject)
 			{
 				parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength] = null;
 				parentSelectable.UpdateChildren();

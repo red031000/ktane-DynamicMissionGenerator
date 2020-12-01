@@ -45,8 +45,9 @@ namespace DynamicMissionGeneratorAssembly
 				OnConfirm(Input.text);
 
 			var parentSelectable = Confirm.GetComponent<KMSelectable>().Parent;
-			if (parentSelectable != null)
+			if (parentSelectable != null && parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength]?.gameObject == Confirm.gameObject)
 			{
+				// It's possible that another dialog has been created. Do not remove its Selectables if so.
 				parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength] = null;
 				parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength + 1] = null;
 				parentSelectable.UpdateChildren();

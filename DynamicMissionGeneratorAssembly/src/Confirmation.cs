@@ -45,7 +45,7 @@ namespace DynamicMissionGeneratorAssembly
 				OnConfirm();
 
 			var parentSelectable = Confirm.GetComponent<KMSelectable>().Parent;
-			if (parentSelectable != null)
+			if (parentSelectable != null && parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength]?.gameObject == Confirm.gameObject)
 			{
 				parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength] = null;
 				parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength + 1] = null;
