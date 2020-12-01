@@ -50,7 +50,7 @@ namespace DynamicMissionGeneratorAssembly
 				(?<Close>\))|
 				(?:time:)?(?<Time1>\d{1,9}):(?<Time2>\d{1,9})(?::(?<Time3>\d{1,9}))?(?!\S)|
 				(?<Strikes>\d{1,9})X(?!\S)|
-				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|ruleseed)(?::(?<Value>\S*))?|
+				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|ruleseed)(?::(?<Value>[^\s)]*))?|
 				(?:(?<Count>\d{1,9})\s*[;*]\s*)?
 				(?:
 					(?<Open>\()|
@@ -780,9 +780,8 @@ namespace DynamicMissionGeneratorAssembly
 								defaultRuleSeed = null;
 							else
 							{
-								var ruleSeed = int.Parse(match.Groups["Value"].Value);
-								if (ruleSeed < 0) messages.Add("Invalid rule seed");
-								defaultRuleSeed = ruleSeed;
+								if (int.TryParse(match.Groups["Value"].Value, out var ruleSeed) && ruleSeed >= 0) defaultRuleSeed = ruleSeed;
+								else messages.Add("Invalid rule seed");
 							}
 							break;
 					}
