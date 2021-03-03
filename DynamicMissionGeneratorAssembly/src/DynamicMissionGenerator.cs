@@ -13,7 +13,6 @@ namespace DynamicMissionGeneratorAssembly
 		public KMSelectable MissionCreationPagePrefab;
 		public KMSelectable MissionsPagePrefab;
 		public Texture2D ModSelectorIcon;
-		public DynamicMissionGeneratorApi DynamicMissionGeneratorApi;
 
 		[HideInInspector]
 		public MissionInputPage InputPage;
@@ -30,10 +29,6 @@ namespace DynamicMissionGeneratorAssembly
 			StartCoroutine(FindModSelector());
 
 			Directory.CreateDirectory(MissionsFolder);
-			GetComponent<KMGameInfo>().OnStateChange += state =>
-			{
-				if (state == KMGameInfo.State.Setup) DynamicMissionGeneratorApi.Instance.ModuleProfiles = null;
-			};
 		}
 
 		private IEnumerator FindModSelector()

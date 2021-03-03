@@ -653,8 +653,6 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			messages = new List<string>();
 
-			var moduleProfiles = new List<ReadOnlyCollection<string>>();
-			var currentBombModuleProfiles = new List<string>();
 			var matches = tokenRegex.Matches(text);
 
 			var allSolvableModules = new HashSet<string>((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi?["AllSolvableModules"] ?? new string[0]);
@@ -681,7 +679,6 @@ namespace DynamicMissionGeneratorAssembly
 				currentBomb = new KMGeneratorSetting() { FrontFaceOnly = defaultFrontOnly };
 				timeSpecified = strikesSpecified = needyActivationTimeSpecified = widgetCountSpecified = ruleSeedSpecified = anySolvableModules = false;
 				pools = new List<KMComponentPool>();
-				currentBombModuleProfiles = new List<string>();
 			}
 
 			void validateBomb(List<string> messages)
@@ -694,7 +691,6 @@ namespace DynamicMissionGeneratorAssembly
 				if (!widgetCountSpecified && defaultWidgetCount.HasValue) currentBomb.OptionalWidgetCount = defaultWidgetCount.Value;
 				if (currentBomb.GetComponentCount() > GetMaxModules())
 					messages.Add($"Too many modules for any bomb casing ({currentBomb.GetComponentCount()} > {GetMaxModules()})" + (bombs != null ? $" on bomb {bombs.Count + 1}" : ""));
-				moduleProfiles.Add(currentBombModuleProfiles.AsReadOnly());
 			}
 
 			foreach (Match match in matches)
@@ -820,7 +816,6 @@ namespace DynamicMissionGeneratorAssembly
 					if (pool.Count <= 0) messages.Add("Invalid module pool count");
 
 					bool allSolvable = true;
-					string profileName = null;
 					string list = FixModuleID(match.Groups["ID"].Value);
 					switch (list)
 					{
@@ -857,7 +852,7 @@ namespace DynamicMissionGeneratorAssembly
 
 							if (useProfile || useNeedyProfile)
 							{
-								profileName = list.Substring(useNeedyProfile ? 13 : 8);
+								var profileName = list.Substring(useNeedyProfile ? 13 : 8);
 								if (!profiles.TryGetValue(profileName, out var profile))
 								{
 									messages.Add($"No profile named '{profileName}' was found.");
@@ -928,7 +923,6 @@ namespace DynamicMissionGeneratorAssembly
 					if (pool.ComponentTypes.Count == 0)
 						pool.ComponentTypes = null;
 					pools.Add(pool);
-					for (int i = 0; i < pool.Count; ++i) currentBombModuleProfiles.Add(profileName);
 				}
 				else if (match.Groups["Open"].Success)
 				{
@@ -996,7 +990,6 @@ namespace DynamicMissionGeneratorAssembly
 				mission.GeneratorSetting.ComponentPools.Add(new KMComponentPool() { Count = factoryMode.Value, ModTypes = new List<string>() { "Factory Mode" } });
 			messages = null;
 			mission.DisplayName = "Custom Freeplay";
-			DynamicMissionGeneratorApi.Instance.ModuleProfiles = moduleProfiles.AsReadOnly();
 			return true;
 		}
 
