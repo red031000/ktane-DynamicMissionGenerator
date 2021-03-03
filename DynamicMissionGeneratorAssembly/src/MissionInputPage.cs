@@ -50,7 +50,7 @@ namespace DynamicMissionGeneratorAssembly
 				(?<Close>\))|
 				(?:time:)?(?<Time1>\d{1,9}):(?<Time2>\d{1,9})(?::(?<Time3>\d{1,9}))?(?!\S)|
 				(?<Strikes>\d{1,9})X(?!\S)|
-				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|ruleseed)(?::(?<Value>[^\s)]*))?|
+				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|ruleseed)\b(?::(?<Value>[^\s)]*))?|
 				(?:(?<Count>\d{1,9})\s*[;*]\s*)?
 				(?:
 					(?<Open>\()|
