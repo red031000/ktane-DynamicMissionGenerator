@@ -342,6 +342,7 @@ namespace DynamicMissionGeneratorAssembly
 			{
 				var obj = GameObject.Find("VanillaRuleModifierProperties");
 				var dic = obj?.GetComponent<IDictionary<string, object>>();
+				DynamicMissionGenerator.Instance.prevRuleSeed = (int) dic["RuleSeed"];
 				dic["RuleSeed"] = new object[] { ruleseed, true };
 			}
 
