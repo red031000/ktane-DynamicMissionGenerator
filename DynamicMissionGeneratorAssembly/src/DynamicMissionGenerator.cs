@@ -36,7 +36,6 @@ namespace DynamicMissionGeneratorAssembly
 			{
 				if (state == KMGameInfo.State.Setup)
 				{
-					DynamicMissionGeneratorApi.Instance.ModuleProfiles = null;
 					if (prevRuleSeed.HasValue)
 					{
 						var obj = GameObject.Find("VanillaRuleModifierProperties");
