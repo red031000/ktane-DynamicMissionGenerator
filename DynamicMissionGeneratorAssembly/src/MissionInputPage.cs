@@ -955,7 +955,6 @@ namespace DynamicMissionGeneratorAssembly
 				else if (match.Groups["Open"].Success)
 				{
 					if (currentBomb != null) messages.Add("Unexpected '('");
-					if (!multipleBombsEnabled && !Application.isEditor) messages.Add("Multiple Bombs does not seem to be enabled");
 					bombRepeatCount = match.Groups["Count"].Success ? int.Parse(match.Groups["Count"].Value) : 1;
 					if (bombRepeatCount <= 0) messages.Add("Invalid bomb repeat count");
 					if (bombs == null) bombs = new List<KMGeneratorSetting>();
@@ -972,6 +971,8 @@ namespace DynamicMissionGeneratorAssembly
 						validateBomb(messages);
 						for (; bombRepeatCount > 0; --bombRepeatCount) bombs.Add(currentBomb);
 						currentBomb = null;
+
+						if (!multipleBombsEnabled && bombs.Count > 1 && !Application.isEditor) messages.Add("Multiple Bombs does not seem to be enabled");
 					}
 
 					noDuplicates = false;
