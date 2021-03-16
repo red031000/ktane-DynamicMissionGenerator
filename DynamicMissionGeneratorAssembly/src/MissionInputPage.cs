@@ -7,6 +7,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 
+using HarmonyLib;
+
 using Newtonsoft.Json;
 
 using UnityEngine;
@@ -14,6 +16,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 using static DynamicMissionGeneratorAssembly.MissionsPage;
+using static KMComponentPool;
 
 namespace DynamicMissionGeneratorAssembly
 {
@@ -51,6 +54,7 @@ namespace DynamicMissionGeneratorAssembly
 				(?:time:)?(?<Time1>\d{1,9}):(?<Time2>\d{1,9})(?::(?<Time3>\d{1,9}))?(?!\S)|
 				(?<Strikes>\d{1,9})X(?!\S)|
 				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|ruleseed)\b(?::(?<Value>[^\s)]*))?|
+				(?<NoDup>!)?
 				(?:(?<Count>\d{1,9})\s*[;*]\s*)?
 				(?:
 					(?<Open>\()|
@@ -82,10 +86,17 @@ namespace DynamicMissionGeneratorAssembly
 			new ModuleData("infinitegtimestrikes", "Factory: Infinite + global time and strikes")
 		};
 
+		private static readonly List<NoDupInfo> noDuplicateInfo = new List<NoDupInfo>();
+		public const string NO_DUPLICATES = "DMG:NO_DUPLICATES";
+
 		private static FieldInfo cursorVertsField = typeof(InputField).GetField("m_CursorVerts", BindingFlags.NonPublic | BindingFlags.Instance);
+		private static readonly MethodInfo getSpecialComponentList = ReflectionHelper.FindType("Assets.Scripts.Missions.MissionUtil").GetMethod("GetSpecialComponentList", BindingFlags.Public | BindingFlags.Static);
 
 		public void Start()
 		{
+			var harmony = new Harmony("red031000.dynamicmissiongenerator");
+			harmony.PatchAll();
+
 			InputField.Scroll += InputField_Scroll;
 			InputField.Submit += (sender, e) => RunInteract();
 			InputField.TabPressed += InputField_TabPressed;
@@ -670,22 +681,25 @@ namespace DynamicMissionGeneratorAssembly
 			bool timeSpecified = false, strikesSpecified = false, needyActivationTimeSpecified = false, widgetCountSpecified = false, ruleSeedSpecified = false;
 			bool anySolvableModules = false;
 			int? factoryMode = null;
+			bool noDuplicates = false;
 
 			mission = ScriptableObject.CreateInstance<KMMission>();
 			mission.PacingEventsEnabled = true;
 			List<KMComponentPool> pools = null;
+			List<KMComponentPool> noDups = new List<KMComponentPool>();
 
 			void newBomb()
 			{
 				currentBomb = new KMGeneratorSetting() { FrontFaceOnly = defaultFrontOnly };
 				timeSpecified = strikesSpecified = needyActivationTimeSpecified = widgetCountSpecified = ruleSeedSpecified = anySolvableModules = false;
 				pools = new List<KMComponentPool>();
+				noDups.Clear();
 			}
 
 			void validateBomb(List<string> messages)
 			{
 				if (!anySolvableModules) messages.Add("No solvable modules" + (bombs != null ? $" on bomb {bombs.Count + 1}" : ""));
-				currentBomb.ComponentPools = pools;
+				currentBomb.ComponentPools = noDups.Count == 0 ? pools.Concat(noDups).ToList() : markNoDuplicates();
 				if (!timeSpecified) currentBomb.TimeLimit = defaultTime ?? currentBomb.GetComponentCount() * 120;
 				if (!strikesSpecified) currentBomb.NumStrikes = defaultStrikes ?? Math.Max(3, currentBomb.GetComponentCount() / 12);
 				if (!needyActivationTimeSpecified && defaultNeedyActivationTime.HasValue) currentBomb.TimeBeforeNeedyActivation = defaultNeedyActivationTime.Value;
@@ -693,6 +707,15 @@ namespace DynamicMissionGeneratorAssembly
 				if (currentBomb.GetComponentCount() > GetMaxModules())
 					messages.Add($"Too many modules for any bomb casing ({currentBomb.GetComponentCount()} > {GetMaxModules()})" + (bombs != null ? $" on bomb {bombs.Count + 1}" : ""));
 			}
+
+			List<KMComponentPool> markNoDuplicates()
+			{
+				var index = noDuplicateInfo.Count;
+				noDuplicateInfo.Add(new NoDupInfo { Pools = pools, NoDups = noDups });
+				return new List<KMComponentPool> { new KMComponentPool { ModTypes = new List<string> { "DMG:NO_DUPLICATES", index.ToString() }, Count = pools.Concat(noDups).Sum(pool => pool.Count) } };
+			}
+
+			noDuplicateInfo.Clear();
 
 			foreach (Match match in matches)
 			{
@@ -811,7 +834,7 @@ namespace DynamicMissionGeneratorAssembly
 					KMComponentPool pool = new KMComponentPool
 					{
 						Count = match.Groups["Count"].Success ? int.Parse(match.Groups["Count"].Value) : 1,
-						ComponentTypes = new List<KMComponentPool.ComponentTypeEnum>(),
+						ComponentTypes = new List<ComponentTypeEnum>(),
 						ModTypes = new List<string>()
 					};
 					if (pool.Count <= 0) messages.Add("Invalid module pool count");
@@ -822,30 +845,30 @@ namespace DynamicMissionGeneratorAssembly
 					{
 						case "ALL_SOLVABLE":
 							anySolvableModules = true;
-							pool.AllowedSources = KMComponentPool.ComponentSource.Base | KMComponentPool.ComponentSource.Mods;
-							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_SOLVABLE;
+							pool.AllowedSources = ComponentSource.Base | ComponentSource.Mods;
+							pool.SpecialComponentType = SpecialComponentTypeEnum.ALL_SOLVABLE;
 							break;
 						case "ALL_NEEDY":
-							pool.AllowedSources = KMComponentPool.ComponentSource.Base | KMComponentPool.ComponentSource.Mods;
-							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_NEEDY;
+							pool.AllowedSources = ComponentSource.Base | ComponentSource.Mods;
+							pool.SpecialComponentType = SpecialComponentTypeEnum.ALL_NEEDY;
 							break;
 						case "ALL_VANILLA":
 							anySolvableModules = true;
-							pool.AllowedSources = KMComponentPool.ComponentSource.Base;
-							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_SOLVABLE;
+							pool.AllowedSources = ComponentSource.Base;
+							pool.SpecialComponentType = SpecialComponentTypeEnum.ALL_SOLVABLE;
 							break;
 						case "ALL_MODS":
 							anySolvableModules = true;
-							pool.AllowedSources = KMComponentPool.ComponentSource.Mods;
-							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_SOLVABLE;
+							pool.AllowedSources = ComponentSource.Mods;
+							pool.SpecialComponentType = SpecialComponentTypeEnum.ALL_SOLVABLE;
 							break;
 						case "ALL_VANILLA_NEEDY":
-							pool.AllowedSources = KMComponentPool.ComponentSource.Base;
-							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_NEEDY;
+							pool.AllowedSources = ComponentSource.Base;
+							pool.SpecialComponentType = SpecialComponentTypeEnum.ALL_NEEDY;
 							break;
 						case "ALL_MODS_NEEDY":
-							pool.AllowedSources = KMComponentPool.ComponentSource.Mods;
-							pool.SpecialComponentType = KMComponentPool.SpecialComponentTypeEnum.ALL_NEEDY;
+							pool.AllowedSources = ComponentSource.Mods;
+							pool.SpecialComponentType = SpecialComponentTypeEnum.ALL_NEEDY;
 							break;
 						default:
 							bool useProfile = list.StartsWith("profile:", StringComparison.InvariantCultureIgnoreCase);
@@ -879,28 +902,28 @@ namespace DynamicMissionGeneratorAssembly
 								{
 									switch (id)
 									{
-										case "WireSequence": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.WireSequence); break;
-										case "Wires": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Wires); break;
-										case "WhosOnFirst": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.WhosOnFirst); break;
-										case "Simon": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Simon); break;
-										case "Password": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Password); break;
-										case "Morse": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Morse); break;
-										case "Memory": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Memory); break;
-										case "Maze": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Maze); break;
-										case "Keypad": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Keypad); break;
-										case "Venn": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.Venn); break;
-										case "BigButton": pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.BigButton); break;
+										case "WireSequence": pool.ComponentTypes.Add(ComponentTypeEnum.WireSequence); break;
+										case "Wires": pool.ComponentTypes.Add(ComponentTypeEnum.Wires); break;
+										case "WhosOnFirst": pool.ComponentTypes.Add(ComponentTypeEnum.WhosOnFirst); break;
+										case "Simon": pool.ComponentTypes.Add(ComponentTypeEnum.Simon); break;
+										case "Password": pool.ComponentTypes.Add(ComponentTypeEnum.Password); break;
+										case "Morse": pool.ComponentTypes.Add(ComponentTypeEnum.Morse); break;
+										case "Memory": pool.ComponentTypes.Add(ComponentTypeEnum.Memory); break;
+										case "Maze": pool.ComponentTypes.Add(ComponentTypeEnum.Maze); break;
+										case "Keypad": pool.ComponentTypes.Add(ComponentTypeEnum.Keypad); break;
+										case "Venn": pool.ComponentTypes.Add(ComponentTypeEnum.Venn); break;
+										case "BigButton": pool.ComponentTypes.Add(ComponentTypeEnum.BigButton); break;
 										case "NeedyCapacitor":
 											allSolvable = false;
-											pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.NeedyCapacitor);
+											pool.ComponentTypes.Add(ComponentTypeEnum.NeedyCapacitor);
 											break;
 										case "NeedyVentGas":
 											allSolvable = false;
-											pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.NeedyVentGas);
+											pool.ComponentTypes.Add(ComponentTypeEnum.NeedyVentGas);
 											break;
 										case "NeedyKnob":
 											allSolvable = false;
-											pool.ComponentTypes.Add(KMComponentPool.ComponentTypeEnum.NeedyKnob);
+											pool.ComponentTypes.Add(ComponentTypeEnum.NeedyKnob);
 											break;
 										default:
 											if (!allSolvableModules.Contains(id) && !allNeedyModules.Contains(id))
@@ -923,16 +946,22 @@ namespace DynamicMissionGeneratorAssembly
 						pool.ModTypes = null;
 					if (pool.ComponentTypes.Count == 0)
 						pool.ComponentTypes = null;
-					pools.Add(pool);
+
+					if (noDuplicates ^ match.Groups["NoDup"].Success)
+						noDups.Add(pool);
+					else
+						pools.Add(pool);
 				}
 				else if (match.Groups["Open"].Success)
 				{
 					if (currentBomb != null) messages.Add("Unexpected '('");
-					if (!multipleBombsEnabled && !Application.isEditor) messages.Add("Multiple Bombs does not seem to be enabled");
 					bombRepeatCount = match.Groups["Count"].Success ? int.Parse(match.Groups["Count"].Value) : 1;
 					if (bombRepeatCount <= 0) messages.Add("Invalid bomb repeat count");
 					if (bombs == null) bombs = new List<KMGeneratorSetting>();
 					newBomb();
+
+					if (match.Groups["NoDup"].Success)
+						noDuplicates = true;
 				}
 				else if (match.Groups["Close"].Success)
 				{
@@ -942,7 +971,11 @@ namespace DynamicMissionGeneratorAssembly
 						validateBomb(messages);
 						for (; bombRepeatCount > 0; --bombRepeatCount) bombs.Add(currentBomb);
 						currentBomb = null;
+
+						if (!multipleBombsEnabled && bombs.Count > 1 && !Application.isEditor) messages.Add("Multiple Bombs does not seem to be enabled");
 					}
+
+					noDuplicates = false;
 				}
 			}
 
@@ -994,6 +1027,90 @@ namespace DynamicMissionGeneratorAssembly
 			return true;
 		}
 
+		public static List<KMComponentPool> CalculateNoDuplicates(int index)
+		{
+			var pools = noDuplicateInfo[index].Pools;
+			var noDups = noDuplicateInfo[index].NoDups;
+
+			// Calculate no duplicate pools
+			var calculated = new List<KMComponentPool>();
+			var moduleCounts = new Dictionary<string, int>();
+
+			// Add modules from duplicate pools
+			foreach (var pool in pools)
+			{
+				for (int i = 0; i < pool.Count; i++)
+				{
+					string module = GetComponentTypes(pool).Shuffle().First();
+					moduleCounts[module] = (moduleCounts.TryGetValue(module, out int count) ? count : 0) + 1;
+				}
+			}
+
+			// Add modules from no duplicate pools
+			foreach (var pool in noDups)
+			{
+				calculated.Add(pool);
+
+				for (int i = 0; i < pool.Count; i++)
+				{
+					string module = GetComponentTypes(pool)
+						.OrderBy(module => moduleCounts.TryGetValue(module, out int count) ? count : 0) // Favor ones that have been picked the least.
+						.ThenBy(module => noDups.Except(calculated).Any(otherPool => GetComponentTypes(otherPool).Contains(module))) // Favor ones that aren't listed in another pool
+						.ThenBy(_ => UnityEngine.Random.value) // Shuffle
+						.First();
+
+					moduleCounts[module] = (moduleCounts.TryGetValue(module, out int count) ? count : 0) + 1;
+				}
+			}
+
+			// Convert the counts into pools
+			return moduleCounts.Select(pair => {
+				var pool = new KMComponentPool {
+					Count = pair.Value
+				};
+
+				string componentType = pair.Key;
+				if (Enum.IsDefined(typeof(ComponentTypeEnum), componentType))
+				{
+					pool.ComponentTypes = new List<ComponentTypeEnum>
+					{
+						(ComponentTypeEnum)Enum.Parse(typeof(ComponentTypeEnum), componentType)
+					};
+				}
+				else
+				{
+					pool.ModTypes = new List<string>
+					{
+						componentType
+					};
+				}
+
+				return pool;
+			}).ToList();
+		}
+
+		private static List<string> GetComponentTypes(KMComponentPool pool)
+		{
+			switch (pool.SpecialComponentType)
+			{
+				case SpecialComponentTypeEnum.ALL_SOLVABLE:
+					return (List<string>) getSpecialComponentList.Invoke(null, new object[] { (int) SpecialComponentTypeEnum.ALL_SOLVABLE, (int) pool.AllowedSources });
+
+				case SpecialComponentTypeEnum.ALL_NEEDY:
+					return (List<string>) getSpecialComponentList.Invoke(null, new object[] { SpecialComponentTypeEnum.ALL_NEEDY, pool.AllowedSources });
+			}
+
+			if (pool.ComponentTypes == null)
+				pool.ComponentTypes = new List<ComponentTypeEnum>();
+
+			if (pool.ModTypes == null)
+				pool.ModTypes = new List<string>();
+
+			var componentTypes = pool.ComponentTypes.ConvertAll(type => type.ToString());
+			componentTypes.AddRange(pool.ModTypes.Where(type => !string.IsNullOrEmpty(type)));
+			return componentTypes;
+		}
+
 		private int GetMaxModules()
 		{
 			if (Application.isEditor) return 11;
@@ -1018,5 +1135,49 @@ namespace DynamicMissionGeneratorAssembly
 			Expert,
 			Defuser
 		}
+
+		private class NoDupInfo
+		{
+			public List<KMComponentPool> Pools;
+			public List<KMComponentPool> NoDups;
+		}
 	}
+
+	#pragma warning disable IDE0051, RCS1213
+	[HarmonyPatch]
+	internal static class CreateBombPatch
+	{
+		private static MethodBase method;
+
+		private static bool Prepare()
+		{
+			var type = ReflectionHelper.FindType("BombGenerator");
+			method = type?.GetMethod("CreateBomb", BindingFlags.Public | BindingFlags.Instance);
+			return method != null;
+		}
+
+		private static MethodBase TargetMethod() => method;
+
+		private static void Prefix(ref object settings)
+		{
+			var firstPool = settings.GetValue<IList>("ComponentPools").Cast<object>().FirstOrDefault();
+			if (firstPool == null)
+				return;
+
+			var modTypes = firstPool.GetValue<IList>("ModTypes").Cast<string>().ToList();
+			if (modTypes == null || modTypes.Count != 2 || modTypes[0] != MissionInputPage.NO_DUPLICATES || !int.TryParse(modTypes[1], out int index))
+				return;
+
+			var kmPools = MissionInputPage.CalculateNoDuplicates(index);
+
+			// Convert the KMComponentPools to ComponentPools
+			var generator = new KMGeneratorSetting
+			{
+				ComponentPools = kmPools
+			};
+			object pools = ReflectionHelper.FindType("ModMission").CallMethod<object>("CreateGeneratorSettingsFromMod", null, generator).GetValue<object>("ComponentPools");
+			settings.SetValue("ComponentPools", pools);
+		}
+	}
+	#pragma warning restore IDE0051, RCS1213
 }
