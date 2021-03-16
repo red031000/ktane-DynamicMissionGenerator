@@ -14,7 +14,7 @@
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile>Unity Full v3.5</TargetFrameworkProfile>
     <!-- Change these variables as needed. -->
-    <UnityInstallPath Condition=" '$(UnityInstallPath)' == '' ">D:/Program Files/Unity/2017.4.40f1</UnityInstallPath>
+    <UnityInstallPath Condition=" '$(UnityInstallPath)' == '' ">C:/Program Files/Unity</UnityInstallPath>
     <GameInstallPath Condition=" '$(GameInstallPath)' == '' ">C:/Program Files (x86)/Steam/steamapps/common/Keep Talking and Nobody Explodes</GameInstallPath>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
