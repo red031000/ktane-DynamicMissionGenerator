@@ -299,7 +299,7 @@ namespace DynamicMissionGeneratorAssembly
 
 			// When the Mod Selector page is displayed, its KMSelectables are reassigned to the Mod Selector tablet itself.
 			// We need to add the OK button to it, so SaveButtonSelectable.Parent is used to reference the tablet.
-			Prompt.MakePrompt("Save Mission", missionName ?? "New Mission", CanvasTransform, SaveButtonSelectable.Parent, name =>
+			Prompt.MakePrompt("Save Mission", missionName ?? "New Mission", CanvasTransform, SaveButtonSelectable.Parent, Audio, name =>
 			{
 				var targetPath = Path.Combine(DynamicMissionGenerator.MissionsFolder, name + ".txt");
 				if (missionName != name && File.Exists(targetPath))
