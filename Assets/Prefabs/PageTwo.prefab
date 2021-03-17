@@ -1117,6 +1117,7 @@ MonoBehaviour:
   CanvasTransform: {fileID: 224574201601845446}
   Prompt: {fileID: 114081787024161796, guid: 6866bbf7e87ac914ea35d56e3864ff47, type: 2}
   Alert: {fileID: 114398417193012206, guid: 5970b168fc1667f4c8fab17ca35f9f4e, type: 2}
+  Audio: {fileID: 114735473441354588}
 --- !u!114 &114242343017597836
 MonoBehaviour:
   m_ObjectHideFlags: 1

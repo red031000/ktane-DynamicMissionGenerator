@@ -20,6 +20,8 @@ namespace DynamicMissionGeneratorAssembly
 		public Prompt Prompt;
 		public Alert Alert;
 
+		public KMAudio Audio;
+
 		private string missionsFolder => DynamicMissionGenerator.MissionsFolder;
 		private Dictionary<string, Mission> missions = new Dictionary<string, Mission>();
 		private Mission contextMenuMission;
@@ -119,7 +121,7 @@ namespace DynamicMissionGeneratorAssembly
 			switch (button.name)
 			{
 				case "Rename":
-					Prompt.MakePrompt("Rename Mission", contextMenuMission.Name, CanvasTransform, SwitchSelectable.Parent, name => {
+					Prompt.MakePrompt("Rename Mission", contextMenuMission.Name, CanvasTransform, SwitchSelectable.Parent, Audio, name => {
 						var targetPath = Path.Combine(missionsFolder, name + ".txt");
 						if (File.Exists(targetPath))
 						{
@@ -132,7 +134,7 @@ namespace DynamicMissionGeneratorAssembly
 					});
 					break;
 				case "Duplicate":
-					Prompt.MakePrompt("New Mission Name", contextMenuMission.Name + " (Copy)", CanvasTransform, SwitchSelectable.Parent, name => {
+					Prompt.MakePrompt("New Mission Name", contextMenuMission.Name + " (Copy)", CanvasTransform, SwitchSelectable.Parent, Audio, name => {
 						var targetPath = Path.Combine(missionsFolder, name + ".txt");
 						if (File.Exists(targetPath))
 						{

@@ -11,12 +11,14 @@ namespace DynamicMissionGeneratorAssembly
 		public UnityEngine.UI.InputField Input;
 		public Text Title;
 
+		private KMAudio Audio;
+
 		private Action<string> OnConfirm;
 
-		public Prompt MakePrompt(string title, string defaultValue, Transform parent, KMSelectable parentSelectable, Action<string> confirm)
+		public Prompt MakePrompt(string title, string defaultValue, Transform parent, KMSelectable parentSelectable, KMAudio audio, Action<string> confirm)
 		{
 			var prompt = Instantiate(gameObject, parent).GetComponent<Prompt>();
-			prompt.SetupPrompt(title, defaultValue, confirm);
+			prompt.SetupPrompt(title, defaultValue, audio, confirm);
 
 			var confirmSelectable = prompt.Confirm.GetComponent<KMSelectable>();
 			var cancelSelectable = prompt.Cancel.GetComponent<KMSelectable>();
@@ -28,7 +30,7 @@ namespace DynamicMissionGeneratorAssembly
 			return prompt;
 		}
 
-		private void SetupPrompt(string title, string defaultValue, Action<string> confirm)
+		private void SetupPrompt(string title, string defaultValue, KMAudio audio, Action<string> confirm)
 		{
 			Title.text = title;
 			Input.text = defaultValue;
@@ -37,12 +39,24 @@ namespace DynamicMissionGeneratorAssembly
 			Cancel.onClick.AddListener(() => closePrompt(false));
 			OnConfirm = confirm;
 			Cancel.GetComponent<KMSelectable>().OnInteract += () => { closePrompt(false); return false; };
+			// Pass KMAudio from the main pages
+			Audio = audio;
 		}
 
 		private void closePrompt(bool confirmed)
 		{
 			if (confirmed)
-				OnConfirm(Input.text);
+			{
+				// Ensure that the user does not submit an empty string.
+				// Use Trim so that a submission of just spaces (such as "   ") does not save.
+				string input = Input.text.Trim();
+				if (string.IsNullOrEmpty(input))
+				{
+					Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
+					return;
+				}
+				OnConfirm(input);
+			}
 
 			var parentSelectable = Confirm.GetComponent<KMSelectable>().Parent;
 			if (parentSelectable != null && parentSelectable.Children[parentSelectable.Children.Length - parentSelectable.ChildRowLength]?.gameObject == Confirm.gameObject)
