@@ -176,7 +176,7 @@ namespace DynamicMissionGeneratorAssembly
 			LoadProfiles();
 			multipleBombsEnabled = GameObject.Find("MultipleBombs(Clone)") != null;
 			factoryEnabled = GameObject.Find("FactoryService(Clone)") != null;
-			tweaksEnabled = File.Exists(Path.Combine(Application.persistentDataPath, "Modsettings/TweakSettings.json"));
+			tweaksEnabled = GameObject.Find("Tweaks(Clone)") != null;
 		}
 
 		public void Update()
@@ -750,19 +750,25 @@ namespace DynamicMissionGeneratorAssembly
 		private void UpdateModeSettingsForMission(KMMission mission, Mode mode)
 		{
 			string modSettingsPath = Path.Combine(Application.persistentDataPath, "Modsettings");
+
 			string modePath = Path.Combine(modSettingsPath, "ModeSettings.json");
 			string tweaksPath = Path.Combine(modSettingsPath, "TweakSettings.json");
-			File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"));
-			File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"));
-			ModeSettings modeSettings = JsonConvert.DeserializeObject<ModeSettings>(File.ReadAllText(modePath));
-			TweakSettings tweakSettings = JsonConvert.DeserializeObject<TweakSettings>(File.ReadAllText(tweaksPath));
 
-			// Modify settings below.
-			modeSettings.TimeModeStartingTime = mission.GeneratorSetting.TimeLimit / 60f;
-			tweakSettings.Mode = mode;
-
-			File.WriteAllText(modePath, JsonConvert.SerializeObject(modeSettings, Formatting.Indented));
+			if (File.Exists(modePath))
+			{
+				File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"));
+				ModeSettings modeSettings = JsonConvert.DeserializeObject<ModeSettings>(File.ReadAllText(modePath));
+				modeSettings.TimeModeStartingTime = mission.GeneratorSetting.TimeLimit / 60f;
+				File.WriteAllText(modePath, JsonConvert.SerializeObject(modeSettings, Formatting.Indented));
+			}
+			
+			if (File.Exists(tweaksPath))
+			{
+				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"));
+				TweakSettings tweakSettings = JsonConvert.DeserializeObject<TweakSettings>(File.ReadAllText(tweaksPath));
+				tweakSettings.Mode = mode;
 			File.WriteAllText(tweaksPath, JsonConvert.SerializeObject(tweakSettings, Formatting.Indented));
+			}
 		}
 
 		private bool ParseTextToMission(string text, out KMMission mission, out int? ruleseed, out Mode mode, out List<string> messages)
