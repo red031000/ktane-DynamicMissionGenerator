@@ -43,8 +43,27 @@ namespace DynamicMissionGeneratorAssembly
 						if (dic != null) dic["RuleSeed"] = new object[] { prevRuleSeed, true };
 						prevRuleSeed = null;
 					}
+
+					RestoreModeSettings();
 				}
 			};
+		}
+
+		private void RestoreModeSettings()
+		{
+			string modSettingsPath = Path.Combine(Application.persistentDataPath, "Modsettings");
+			string modeSettingsBackupPath = Path.Combine(modSettingsPath, "ModeSettings.json.bak");
+			if (File.Exists(modeSettingsBackupPath))
+			{
+				File.Copy(modeSettingsBackupPath, Path.Combine(modSettingsPath, "ModeSettings.json"), true);
+				File.Delete(modeSettingsBackupPath);
+			}
+			string tweakSettingsBackupPath = Path.Combine(modSettingsPath, "TweakSettings.json.bak");
+			if (File.Exists(tweakSettingsBackupPath))
+			{
+				File.Copy(tweakSettingsBackupPath, Path.Combine(modSettingsPath, "TweakSettings.json"), true);
+				File.Delete(tweakSettingsBackupPath);
+			}
 		}
 
 		private IEnumerator FindModSelector()

@@ -357,6 +357,8 @@ namespace DynamicMissionGeneratorAssembly
 				dic["RuleSeed"] = new object[] { ruleseed, true };
 			}
 
+			UpdateModeSettingsForMission(mission);
+
 			GameCommands.StartMission(mission, "-1");
 
 			return false;
@@ -659,6 +661,78 @@ namespace DynamicMissionGeneratorAssembly
 				Debug.LogWarning($"[Dynamic Mission Generator] Could not load profiles");
 				Debug.LogException(ex, this);
 			}
+		}
+
+		private class ModeSettings
+		{
+			public float ZenModeTimePenalty = 0;
+			public float ZenModeTimePenaltyIncrease = 0;
+			public float ZenModeTimerSpeedUp = 0.25f;
+			public float ZenModeTimerMaxSpeed = 2;
+			public float SteadyModeFixedPenalty = 2;
+			public float SteadyModePercentPenalty = 0;
+			public float TimeModeStartingTime = 5;
+			public float TimeModeStartingMultiplier = 9.0f;
+			public float TimeModeMaxMultiplier = 10.0f;
+			public float TimeModeMinMultiplier = 1.0f;
+			public float TimeModeSolveBonus = 0.1f;
+			public float TimeModeMultiplierStrikePenalty = 1.5f;
+			public float TimeModeTimerStrikePenalty = 0.25f;
+			public float TimeModeMinimumTimeLost = 15;
+			public float TimeModeMinimumTimeGained = 20;
+			public float TimeModePointMultiplier = 1;
+			public Dictionary<string, double> ComponentValues = new();
+			public Dictionary<string, double> TotalModulesMultiplier = new();
+		}
+
+		private enum Mode
+		{
+			Normal,
+			Time,
+			Zen,
+			Steady
+		}
+
+		private class TweakSettings
+		{
+			public float FadeTime = 1f;
+			public bool InstantSkip = true;
+			public bool SkipGameplayDelay = false;
+			public bool BetterCasePicker = true;
+			public bool EnableModsOnlyKey = false;
+			public bool DemandBasedModLoading = false;
+			public List<string> DemandBasedModsExcludeList = new();
+			public int DemandModLimit = -1;
+			public bool FixFER = false;
+			public bool BombHUD = false;
+			public bool ShowEdgework = false;
+			public bool DisableAdvantageous = false;
+			public bool ShowTips = true;
+			public List<string> HideTOC = new();
+			public Mode Mode = Mode.Normal;
+			public int MissionSeed = -1;
+			public bool CaseGenerator = true;
+			public bool ModuleTweaks = true;
+			public List<string> CaseColors = new();
+			public Dictionary<string, object> Holdables = new();
+			public HashSet<string> PinnedSettings = new();
+		}
+
+		private void UpdateModeSettingsForMission(KMMission mission)
+		{
+			string modSettingsPath = Path.Combine(Application.persistentDataPath, "Modsettings");
+			string modePath = Path.Combine(modSettingsPath, "ModeSettings.json");
+			string tweaksPath = Path.Combine(modSettingsPath, "TweakSettings.json");
+			File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"));
+			File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"));
+			ModeSettings modeSettings = JsonConvert.DeserializeObject<ModeSettings>(File.ReadAllText(modePath));
+			TweakSettings tweakSettings = JsonConvert.DeserializeObject<TweakSettings>(File.ReadAllText(tweaksPath));
+
+			// Modify settings below.
+			modeSettings.TimeModeStartingTime = mission.GeneratorSetting.TimeLimit / 60f;
+
+			File.WriteAllText(modePath, JsonConvert.SerializeObject(modeSettings, Formatting.Indented));
+			File.WriteAllText(tweaksPath, JsonConvert.SerializeObject(tweakSettings, Formatting.Indented));
 		}
 
 		private bool ParseTextToMission(string text, out KMMission mission, out int? ruleseed, out List<string> messages)
