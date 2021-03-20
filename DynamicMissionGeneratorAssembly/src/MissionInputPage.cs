@@ -1094,10 +1094,8 @@ namespace DynamicMissionGeneratorAssembly
 			switch (pool.SpecialComponentType)
 			{
 				case SpecialComponentTypeEnum.ALL_SOLVABLE:
-					return (List<string>) getSpecialComponentList.Invoke(null, new object[] { (int) SpecialComponentTypeEnum.ALL_SOLVABLE, (int) pool.AllowedSources });
-
 				case SpecialComponentTypeEnum.ALL_NEEDY:
-					return (List<string>) getSpecialComponentList.Invoke(null, new object[] { SpecialComponentTypeEnum.ALL_NEEDY, pool.AllowedSources });
+					return (List<string>) getSpecialComponentList.Invoke(null, new object[] { (int) pool.SpecialComponentType, (int) pool.AllowedSources });
 			}
 
 			if (pool.ComponentTypes == null)
