@@ -784,9 +784,9 @@ namespace DynamicMissionGeneratorAssembly
 
 			List<KMComponentPool> markNoDuplicates()
 			{
-				var index = noDuplicateInfo.Count;
+				int index = noDuplicateInfo.Count;
 				noDuplicateInfo.Add(new NoDupInfo { Pools = pools, NoDups = noDups });
-				return new List<KMComponentPool> { new KMComponentPool { ModTypes = new List<string> { "DMG:NO_DUPLICATES", index.ToString() }, Count = pools.Concat(noDups).Sum(pool => pool.Count) } };
+				return new List<KMComponentPool> { new KMComponentPool { ModTypes = new List<string> { NO_DUPLICATES, index.ToString() }, Count = pools.Concat(noDups).Sum(pool => pool.Count) } };
 			}
 
 			noDuplicateInfo.Clear();
