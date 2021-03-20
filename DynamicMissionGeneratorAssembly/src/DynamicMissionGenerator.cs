@@ -44,9 +44,16 @@ namespace DynamicMissionGeneratorAssembly
 						prevRuleSeed = null;
 					}
 
-					RestoreModeSettings();
+					StartCoroutine(RestoreModeSettingsLate());
 				}
 			};
+		}
+
+		private IEnumerator RestoreModeSettingsLate()
+		{
+			yield return null;
+			RestoreModeSettings();
+			yield break;
 		}
 
 		private void RestoreModeSettings()
