@@ -767,7 +767,7 @@ namespace DynamicMissionGeneratorAssembly
 				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"));
 				TweakSettings tweakSettings = JsonConvert.DeserializeObject<TweakSettings>(File.ReadAllText(tweaksPath));
 				tweakSettings.Mode = mode;
-			File.WriteAllText(tweaksPath, JsonConvert.SerializeObject(tweakSettings, Formatting.Indented));
+				File.WriteAllText(tweaksPath, JsonConvert.SerializeObject(tweakSettings, Formatting.Indented));
 			}
 		}
 
