@@ -361,6 +361,7 @@ namespace DynamicMissionGeneratorAssembly
 			string modeError = UpdateModeSettingsForMission(mission, mode);
 			if (!string.IsNullOrEmpty(modeError))
 			{
+				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
 				StartCoroutine(ShowErrorPopupCoroutine(modeError));
 				return false;
 			}
