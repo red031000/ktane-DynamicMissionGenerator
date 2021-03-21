@@ -56,7 +56,7 @@ namespace DynamicMissionGeneratorAssembly
 			yield break;
 		}
 
-		private void RestoreModeSettings()
+		public static void RestoreModeSettings()
 		{
 			string modSettingsPath = Path.Combine(Application.persistentDataPath, "Modsettings");
 			string modeSettingsBackupPath = Path.Combine(modSettingsPath, "ModeSettings.json.bak");

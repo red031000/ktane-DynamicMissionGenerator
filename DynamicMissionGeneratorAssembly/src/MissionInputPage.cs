@@ -358,6 +358,13 @@ namespace DynamicMissionGeneratorAssembly
 				Debug.LogException(ex, this);
 			}
 
+			string modeError = UpdateModeSettingsForMission(mission, mode);
+			if (!string.IsNullOrEmpty(modeError))
+			{
+				StartCoroutine(ShowErrorPopupCoroutine(modeError));
+				return false;
+			}
+
 			if (ruleseed != null)
 			{
 				var obj = GameObject.Find("VanillaRuleModifierProperties");
@@ -365,8 +372,6 @@ namespace DynamicMissionGeneratorAssembly
 				DynamicMissionGenerator.Instance.prevRuleSeed = (int) dic["RuleSeed"];
 				dic["RuleSeed"] = new object[] { ruleseed, true };
 			}
-
-			UpdateModeSettingsForMission(mission, mode);
 
 			GameCommands.StartMission(mission, "-1");
 
@@ -747,28 +752,39 @@ namespace DynamicMissionGeneratorAssembly
 			public HashSet<string> PinnedSettings = new();
 		}
 
-		private void UpdateModeSettingsForMission(KMMission mission, Mode mode)
+		private string UpdateModeSettingsForMission(KMMission mission, Mode mode)
 		{
 			string modSettingsPath = Path.Combine(Application.persistentDataPath, "Modsettings");
 
 			string modePath = Path.Combine(modSettingsPath, "ModeSettings.json");
 			string tweaksPath = Path.Combine(modSettingsPath, "TweakSettings.json");
 
-			if (File.Exists(modePath))
-			{
-				File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"));
-				ModeSettings modeSettings = JsonConvert.DeserializeObject<ModeSettings>(File.ReadAllText(modePath));
-				modeSettings.TimeModeStartingTime = mission.GeneratorSetting.TimeLimit / 60f;
-				File.WriteAllText(modePath, JsonConvert.SerializeObject(modeSettings, Formatting.Indented));
-			}
-			
+			// Declare tweakSettings outside of the if statement so that the ModeSettings updater can reference it.
+			TweakSettings tweakSettings = null;
+
 			if (File.Exists(tweaksPath))
 			{
+				tweakSettings = JsonConvert.DeserializeObject<TweakSettings>(File.ReadAllText(tweaksPath));
+				if (tweakSettings.DisableAdvantageous && mode != Mode.Normal) return $"Advantageous features are disabled. Cannot set mode to {mode} Mode.";
 				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"));
-				TweakSettings tweakSettings = JsonConvert.DeserializeObject<TweakSettings>(File.ReadAllText(tweaksPath));
+
 				tweakSettings.Mode = mode;
+
 				File.WriteAllText(tweaksPath, JsonConvert.SerializeObject(tweakSettings, Formatting.Indented));
 			}
+
+			if (File.Exists(modePath))
+			{
+				ModeSettings modeSettings = JsonConvert.DeserializeObject<ModeSettings>(File.ReadAllText(modePath));
+				File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"));
+
+				// Only set Time Mode time if Time Mode is enabled.
+				if (mode == Mode.Time || tweakSettings != null && tweakSettings.Mode == Mode.Time) modeSettings.TimeModeStartingTime = mission.GeneratorSetting.TimeLimit / 60f;
+
+				File.WriteAllText(modePath, JsonConvert.SerializeObject(modeSettings, Formatting.Indented));
+			}
+
+			return null;
 		}
 
 		private bool ParseTextToMission(string text, out KMMission mission, out int? ruleseed, out Mode mode, out List<string> messages)
