@@ -41,7 +41,7 @@ namespace DynamicMissionGeneratorAssembly
 
 		private string missionName;
 		private readonly List<GameObject> listItems = new List<GameObject>();
-		private bool multipleBombsEnabled, factoryEnabled;
+		private bool multipleBombsEnabled, factoryEnabled, tweaksEnabled;
 
 		public KMAudio Audio;
 		public KMGameInfo GameInfo;
@@ -53,7 +53,7 @@ namespace DynamicMissionGeneratorAssembly
 				(?<Close>\))|
 				(?:time:)?(?<Time1>\d{1,9}):(?<Time2>\d{1,9})(?::(?<Time3>\d{1,9}))?(?!\S)|
 				(?<Strikes>\d{1,9})X(?!\S)|
-				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|ruleseed)\b(?::(?<Value>[^\s)]*))?|
+				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|mode|ruleseed)\b(?::(?<Value>[^\s)]*))?|
 				(?<NoDup>!)?
 				(?:(?<Count>\d{1,9})\s*[;*]\s*)?
 				(?:
@@ -84,6 +84,14 @@ namespace DynamicMissionGeneratorAssembly
 			new ModuleData("infinitegtime", "Factory: Infinite + global time"),
 			new ModuleData("infinitegstrikes", "Factory: Infinite + global strikes"),
 			new ModuleData("infinitegtimestrikes", "Factory: Infinite + global time and strikes")
+		};
+
+		private static readonly ModuleData[] tweaksModeList = new[]
+		{
+			new ModuleData("normal", "Normal Mode"),
+			new ModuleData("time", "Time Mode"),
+			new ModuleData("zen", "Zen Mode"),
+			new ModuleData("steady", "Steady Mode")
 		};
 
 		private static readonly List<NoDupInfo> noDuplicateInfo = new List<NoDupInfo>();
@@ -168,6 +176,7 @@ namespace DynamicMissionGeneratorAssembly
 			LoadProfiles();
 			multipleBombsEnabled = GameObject.Find("MultipleBombs(Clone)") != null;
 			factoryEnabled = GameObject.Find("FactoryService(Clone)") != null;
+			tweaksEnabled = GameObject.Find("Tweaks(Clone)") != null;
 		}
 
 		public void Update()
@@ -323,7 +332,7 @@ namespace DynamicMissionGeneratorAssembly
 				return false;
 			}
 
-			bool success = ParseTextToMission(InputField.text, out KMMission mission, out int? ruleseed, out var messages);
+			bool success = ParseTextToMission(InputField.text, out KMMission mission, out int? ruleseed, out Mode mode, out var messages);
 			if (!success)
 			{
 				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
@@ -347,6 +356,14 @@ namespace DynamicMissionGeneratorAssembly
 			{
 				Debug.LogError("[Dynamic Mission Generator] Could not write LastDynamicMission.txt");
 				Debug.LogException(ex, this);
+			}
+
+			string modeError = UpdateModeSettingsForMission(mission, mode);
+			if (!string.IsNullOrEmpty(modeError))
+			{
+				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
+				StartCoroutine(ShowErrorPopupCoroutine(modeError));
+				return false;
 			}
 
 			if (ruleseed != null)
@@ -446,6 +463,25 @@ namespace DynamicMissionGeneratorAssembly
 							else
 							{
 								var item = AddListItem(lastMatch.Groups["Setting"].Value + ":" + lastMatch.Groups["Value"].Value, "[Factory is not enabled]", false);
+								item.HighlightID(0, item.ID.Length);
+							}
+						}
+						else if (lastMatch.Groups["Setting"].Value.Equals("mode", StringComparison.InvariantCultureIgnoreCase))
+						{
+							if (tweaksEnabled)
+							{
+								foreach (var m in tweaksModeList)
+								{
+									if (m.ModuleType.StartsWith(lastMatch.Groups["Value"].Value, StringComparison.InvariantCultureIgnoreCase))
+									{
+										var item = AddListItem("mode:" + m.ModuleType, m.DisplayName, true);
+										item.HighlightID(0, lastMatch.Groups["Value"].Length + 5);
+									}
+								}
+							}
+							else
+							{
+								var item = AddListItem(lastMatch.Groups["Setting"].Value + ":" + lastMatch.Groups["Value"].Value, "[Tweaks is not enabled]", false);
 								item.HighlightID(0, item.ID.Length);
 							}
 						}
@@ -561,6 +597,7 @@ namespace DynamicMissionGeneratorAssembly
 			moduleData.Add(new ModuleData("ruleseed:", "[Set rule seed]"));
 			moduleData.Add(new ModuleData("needyactivationtime:", "[Set needy activation time in seconds]"));
 			if (factoryEnabled) moduleData.Add(new ModuleData("factory:", "[Set Factory mode]"));
+			if (tweaksEnabled) moduleData.Add(new ModuleData("mode:", "[Set game mode]"));
 			moduleData.Add(new ModuleData("Wires", "Wires"));
 			moduleData.Add(new ModuleData("Keypad", "Keypad"));
 			moduleData.Add(new ModuleData("Memory", "Memory"));
@@ -661,8 +698,100 @@ namespace DynamicMissionGeneratorAssembly
 			}
 		}
 
-		private bool ParseTextToMission(string text, out KMMission mission, out int? ruleseed, out List<string> messages)
+		private class ModeSettings
 		{
+			public float ZenModeTimePenalty = 0;
+			public float ZenModeTimePenaltyIncrease = 0;
+			public float ZenModeTimerSpeedUp = 0.25f;
+			public float ZenModeTimerMaxSpeed = 2;
+			public float SteadyModeFixedPenalty = 2;
+			public float SteadyModePercentPenalty = 0;
+			public float TimeModeStartingTime = 5;
+			public float TimeModeStartingMultiplier = 9.0f;
+			public float TimeModeMaxMultiplier = 10.0f;
+			public float TimeModeMinMultiplier = 1.0f;
+			public float TimeModeSolveBonus = 0.1f;
+			public float TimeModeMultiplierStrikePenalty = 1.5f;
+			public float TimeModeTimerStrikePenalty = 0.25f;
+			public float TimeModeMinimumTimeLost = 15;
+			public float TimeModeMinimumTimeGained = 20;
+			public float TimeModePointMultiplier = 1;
+			public Dictionary<string, double> ComponentValues = new();
+			public Dictionary<string, double> TotalModulesMultiplier = new();
+		}
+
+		private enum Mode
+		{
+			Normal,
+			Time,
+			Zen,
+			Steady
+		}
+
+		private class TweakSettings
+		{
+			public float FadeTime = 1f;
+			public bool InstantSkip = true;
+			public bool SkipGameplayDelay = false;
+			public bool BetterCasePicker = true;
+			public bool EnableModsOnlyKey = false;
+			public bool DemandBasedModLoading = false;
+			public List<string> DemandBasedModsExcludeList = new();
+			public int DemandModLimit = -1;
+			public bool FixFER = false;
+			public bool BombHUD = false;
+			public bool ShowEdgework = false;
+			public bool DisableAdvantageous = false;
+			public bool ShowTips = true;
+			public List<string> HideTOC = new();
+			public Mode Mode = Mode.Normal;
+			public int MissionSeed = -1;
+			public bool CaseGenerator = true;
+			public bool ModuleTweaks = true;
+			public List<string> CaseColors = new();
+			public Dictionary<string, object> Holdables = new();
+			public HashSet<string> PinnedSettings = new();
+		}
+
+		private string UpdateModeSettingsForMission(KMMission mission, Mode mode)
+		{
+			string modSettingsPath = Path.Combine(Application.persistentDataPath, "Modsettings");
+
+			string modePath = Path.Combine(modSettingsPath, "ModeSettings.json");
+			string tweaksPath = Path.Combine(modSettingsPath, "TweakSettings.json");
+
+			// Declare tweakSettings outside of the if statement so that the ModeSettings updater can reference it.
+			TweakSettings tweakSettings = null;
+
+			if (File.Exists(tweaksPath))
+			{
+				tweakSettings = JsonConvert.DeserializeObject<TweakSettings>(File.ReadAllText(tweaksPath));
+				if (tweakSettings.DisableAdvantageous && mode != Mode.Normal) return $"Advantageous features are disabled. Cannot set mode to {mode} Mode.";
+				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"));
+
+				tweakSettings.Mode = mode;
+
+				File.WriteAllText(tweaksPath, JsonConvert.SerializeObject(tweakSettings, Formatting.Indented));
+			}
+
+			if (File.Exists(modePath))
+			{
+				ModeSettings modeSettings = JsonConvert.DeserializeObject<ModeSettings>(File.ReadAllText(modePath));
+				File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"));
+
+				// Only set Time Mode time if Time Mode is enabled.
+				if (mode == Mode.Time || tweakSettings != null && tweakSettings.Mode == Mode.Time) modeSettings.TimeModeStartingTime = mission.GeneratorSetting.TimeLimit / 60f;
+
+				File.WriteAllText(modePath, JsonConvert.SerializeObject(modeSettings, Formatting.Indented));
+			}
+
+			return null;
+		}
+
+		private bool ParseTextToMission(string text, out KMMission mission, out int? ruleseed, out Mode mode, out List<string> messages)
+		{
+			mode = Mode.Normal;
+			bool modeSet = false;
 			messages = new List<string>();
 
 			var matches = tokenRegex.Matches(text);
@@ -710,9 +839,9 @@ namespace DynamicMissionGeneratorAssembly
 
 			List<KMComponentPool> markNoDuplicates()
 			{
-				var index = noDuplicateInfo.Count;
+				int index = noDuplicateInfo.Count;
 				noDuplicateInfo.Add(new NoDupInfo { Pools = pools, NoDups = noDups });
-				return new List<KMComponentPool> { new KMComponentPool { ModTypes = new List<string> { "DMG:NO_DUPLICATES", index.ToString() }, Count = pools.Concat(noDups).Sum(pool => pool.Count) } };
+				return new List<KMComponentPool> { new KMComponentPool { ModTypes = new List<string> { NO_DUPLICATES, index.ToString() }, Count = pools.Concat(noDups).Sum(pool => pool.Count) } };
 			}
 
 			noDuplicateInfo.Clear();
@@ -788,6 +917,28 @@ namespace DynamicMissionGeneratorAssembly
 								if (factoryMode >= factoryModeList.Length)
 								{
 									messages.Add("Invalid factory mode");
+								}
+							}
+							break;
+						case "mode":
+							if (bombs != null && currentBomb != null) messages.Add("Game mode cannot be a bomb-level setting");
+							else if (modeSet) messages.Add("Game mode specified multiple times");
+							else if (!tweaksEnabled && !Application.isEditor) messages.Add("Tweaks does not seem to be enabled (cannot set game mode)");
+							else
+							{
+								int modeIndex;
+								for (modeIndex = 0; modeIndex < tweaksModeList.Length; ++modeIndex)
+								{
+									if (tweaksModeList[modeIndex].ModuleType.Equals(match.Groups["Value"].Value, StringComparison.InvariantCultureIgnoreCase)) break;
+								}
+								if (modeIndex >= tweaksModeList.Length)
+								{
+									messages.Add($"Invalid game mode '{match.Groups["Value"].Value}'");
+								}
+								else
+								{
+									mode = (Mode)modeIndex;
+									modeSet = true;
 								}
 							}
 							break;

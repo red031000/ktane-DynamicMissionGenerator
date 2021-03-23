@@ -43,6 +43,23 @@ namespace DynamicMissionGeneratorAssembly
 			Audio = audio;
 		}
 
+		// Allow pressing of Return (Enter) to confirm instead of having to click the button.
+		// Setting a bool ensures that it does not fire closePrompt every frame that Return is held.
+		// (If the input were empty, it would constantly play the strike sound while Return is held.)
+		private bool ReturnPressed;
+		void Update()
+		{
+			if (UnityEngine.Input.GetKeyDown(KeyCode.Return))
+			{
+				if (!ReturnPressed)
+				{
+					ReturnPressed = true;
+					closePrompt(true);
+				}
+			}
+			else if (ReturnPressed) ReturnPressed = false;
+		}
+
 		private void closePrompt(bool confirmed)
 		{
 			if (confirmed)
