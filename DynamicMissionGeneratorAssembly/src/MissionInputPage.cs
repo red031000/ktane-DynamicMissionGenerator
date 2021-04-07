@@ -889,7 +889,6 @@ namespace DynamicMissionGeneratorAssembly
 						case "widgets":
 							if (widgetCountSpecified) messages.Add("Widget count specified multiple times");
 							widgetCountSpecified = true;
-							Debug.Log($"[Dynamic Mission Generator] rexkix waz heer.");
 							if (!int.TryParse(match.Groups["Value"].Value, out int widgetCount))
 							{
 								messages.Add("Invalid widget count");
