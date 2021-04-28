@@ -14,5 +14,6 @@ public enum Mode
 	Normal,
 	Time,
 	Zen,
-	Steady
+	Steady,
+	None
 }

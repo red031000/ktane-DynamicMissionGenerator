@@ -785,7 +785,8 @@ namespace DynamicMissionGeneratorAssembly
 				if (tweakSettings.DisableAdvantageous && mode != Mode.Normal) return $"Advantageous features are disabled. Cannot set mode to {mode} Mode.";
 				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"));
 
-				tweakSettings.Mode = mode;
+				if (mode != Mode.None)
+					tweakSettings.Mode = mode;
 
 				File.WriteAllText(tweaksPath, JsonConvert.SerializeObject(tweakSettings, Formatting.Indented));
 			}
@@ -806,7 +807,7 @@ namespace DynamicMissionGeneratorAssembly
 
 		private DMGMission ParseTextToMission(string text)
 		{
-			Mode mode = Mode.Normal;
+			Mode mode = Mode.None;
 			bool modeSet = false;
 			List<string> messages = new List<string>();
 
