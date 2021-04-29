@@ -53,7 +53,7 @@ namespace DynamicMissionGeneratorAssembly
 				(?<Close>\))|
 				(?:time:)?(?<Time1>\d{1,9}):(?<Time2>\d{1,9})(?::(?<Time3>\d{1,9}))?(?!\S)|
 				(?<Strikes>\d{1,9})X(?!\S)|
-				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|mode|ruleseed)\b(?::\s*(?<Value>[^\s)]*))?|
+				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|mode|ruleseed|room)\b(?::(?<Value>(?:,\s*|[^\s)])*))?|
 				(?<NoDup>!)?
 				(?:(?<Count>\d{1,9})\s*[;*]\s*)?
 				(?:
@@ -96,6 +96,9 @@ namespace DynamicMissionGeneratorAssembly
 
 		private static readonly List<NoDupInfo> noDuplicateInfo = new List<NoDupInfo>();
 		public const string NO_DUPLICATES = "DMG:NO_DUPLICATES";
+
+		public static string GameplayRoomOverride;
+		public const string FACTORY_ROOM = "FactoryRoom";
 
 		private static FieldInfo cursorVertsField = typeof(InputField).GetField("m_CursorVerts", BindingFlags.NonPublic | BindingFlags.Instance);
 		private static readonly MethodInfo getSpecialComponentList = ReflectionHelper.FindType("Assets.Scripts.Missions.MissionUtil").GetMethod("GetSpecialComponentList", BindingFlags.Public | BindingFlags.Static);
@@ -332,8 +335,9 @@ namespace DynamicMissionGeneratorAssembly
 				return false;
 			}
 
-			bool success = ParseTextToMission(InputField.text, out KMMission mission, out int? ruleseed, out Mode mode, out var messages);
-			if (!success)
+			DMGMission mission = ParseTextToMission(InputField.text);
+			var messages = mission.Messages;
+			if (messages.Count != 0)
 			{
 				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
 				StartCoroutine(ShowErrorPopupCoroutine(string.Join("\n", messages.Take(5).ToArray()) + (messages.Count > 5 ? $"\n{messages.Count - 5} more" : "")));
@@ -358,7 +362,7 @@ namespace DynamicMissionGeneratorAssembly
 				Debug.LogException(ex, this);
 			}
 
-			string modeError = UpdateModeSettingsForMission(mission, mode);
+			string modeError = UpdateModeSettingsForMission(mission.KMMission, mission.Mode);
 			if (!string.IsNullOrEmpty(modeError))
 			{
 				Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.Strike, transform);
@@ -366,15 +370,17 @@ namespace DynamicMissionGeneratorAssembly
 				return false;
 			}
 
-			if (ruleseed != null)
+			if (mission.RuleSeed != null)
 			{
 				var obj = GameObject.Find("VanillaRuleModifierProperties");
 				var dic = obj?.GetComponent<IDictionary<string, object>>();
 				DynamicMissionGenerator.Instance.prevRuleSeed = (int) dic["RuleSeed"];
-				dic["RuleSeed"] = new object[] { ruleseed, true };
+				dic["RuleSeed"] = new object[] { mission.RuleSeed, true };
 			}
 
-			GameCommands.StartMission(mission, "-1");
+			GameplayRoomOverride = mission.GameplayRoom;
+
+			GameCommands.StartMission(mission.KMMission, "-1");
 
 			return false;
 		}
@@ -447,48 +453,65 @@ namespace DynamicMissionGeneratorAssembly
 					}
 					else if (lastMatch.Groups["Setting"].Success)
 					{
-						if (lastMatch.Groups["Setting"].Value.Equals("factory", StringComparison.InvariantCultureIgnoreCase))
+						var value = lastMatch.Groups["Value"].Value.ToLowerInvariant();
+						switch (lastMatch.Groups["Setting"].Value.ToLowerInvariant())
 						{
-							if (factoryEnabled)
-							{
-								foreach (var m in factoryModeList)
+							case "factory":
+								if (factoryEnabled)
 								{
-									if (m.ModuleType.StartsWith(lastMatch.Groups["Value"].Value, StringComparison.InvariantCultureIgnoreCase))
+									foreach (var m in factoryModeList)
 									{
-										var item = AddListItem("factory:" + m.ModuleType, m.DisplayName, true);
-										item.HighlightID(0, lastMatch.Groups["Value"].Length + 8);
+										if (m.ModuleType.StartsWith(value))
+										{
+											var item = AddListItem("factory:" + m.ModuleType, m.DisplayName, true);
+											item.HighlightID(0, lastMatch.Groups["Value"].Length + 8);
+										}
 									}
 								}
-							}
-							else
-							{
-								var item = AddListItem(lastMatch.Groups["Setting"].Value + ":" + lastMatch.Groups["Value"].Value, "[Factory is not enabled]", false);
-								item.HighlightID(0, item.ID.Length);
-							}
-						}
-						else if (lastMatch.Groups["Setting"].Value.Equals("mode", StringComparison.InvariantCultureIgnoreCase))
-						{
-							if (tweaksEnabled)
-							{
-								foreach (var m in tweaksModeList)
+								else
 								{
-									if (m.ModuleType.StartsWith(lastMatch.Groups["Value"].Value, StringComparison.InvariantCultureIgnoreCase))
+									var item = AddListItem(lastMatch.Groups["Setting"].Value + ":" + lastMatch.Groups["Value"].Value, "[Factory is not enabled]", false);
+									item.HighlightID(0, item.ID.Length);
+								}
+								break;
+
+							case "mode":
+								if (tweaksEnabled)
+								{
+									foreach (var m in tweaksModeList)
 									{
-										var item = AddListItem("mode:" + m.ModuleType, m.DisplayName, true);
-										item.HighlightID(0, lastMatch.Groups["Value"].Length + 5);
+										if (m.ModuleType.StartsWith(value))
+										{
+											var item = AddListItem("mode:" + m.ModuleType, m.DisplayName, true);
+											item.HighlightID(0, lastMatch.Groups["Value"].Length + 5);
+										}
 									}
 								}
-							}
-							else
-							{
-								var item = AddListItem(lastMatch.Groups["Setting"].Value + ":" + lastMatch.Groups["Value"].Value, "[Tweaks is not enabled]", false);
-								item.HighlightID(0, item.ID.Length);
-							}
-						}
-						else
-						{
-							var item = AddListItem("", lastMatch.Groups["Setting"].Value + ": " + lastMatch.Groups["Value"].Value, false);
-							item.HighlightName(lastMatch.Groups["Setting"].Value.Length + 2, item.Name.Length - (lastMatch.Groups["Setting"].Value.Length + 2));
+								else
+								{
+									var item = AddListItem(lastMatch.Groups["Setting"].Value + ":" + lastMatch.Groups["Value"].Value, "[Tweaks is not enabled]", false);
+									item.HighlightID(0, item.ID.Length);
+								}
+								break;
+							case "room":
+								// Provide autocomplete for the current room that's being specified in a comma separated list.
+								var match = Regex.Match(value, ",\\s*", RegexOptions.RightToLeft);
+								int index = match.Success ? (match.Index + match.Length) : 0;
+								string subValue = value.Substring(index);
+								string prevValue = value.Substring(0, index);
+								foreach (var pair in GetGameplayRooms())
+								{
+									if (pair.Key.StartsWith(subValue))
+									{
+										var item = AddListItem("room:" + prevValue + pair.Key, pair.Key, true);
+										item.HighlightID(0, value.Length + 5);
+									}
+								}
+								break;
+							default:
+								var defaultItem = AddListItem("", lastMatch.Groups["Setting"].Value + ": " + lastMatch.Groups["Value"].Value, false);
+								defaultItem.HighlightName(lastMatch.Groups["Setting"].Value.Length + 2, defaultItem.Name.Length - (lastMatch.Groups["Setting"].Value.Length + 2));
+								break;
 						}
 					}
 					else if (lastMatch.Groups["ID"].Success)
@@ -598,6 +621,7 @@ namespace DynamicMissionGeneratorAssembly
 			moduleData.Add(new ModuleData("needyactivationtime:", "[Set needy activation time in seconds]"));
 			if (factoryEnabled) moduleData.Add(new ModuleData("factory:", "[Set Factory mode]"));
 			if (tweaksEnabled) moduleData.Add(new ModuleData("mode:", "[Set game mode]"));
+			moduleData.Add(new ModuleData("room:", "[Set gameplay room]"));
 			moduleData.Add(new ModuleData("Wires", "Wires"));
 			moduleData.Add(new ModuleData("Keypad", "Keypad"));
 			moduleData.Add(new ModuleData("Memory", "Memory"));
@@ -720,14 +744,6 @@ namespace DynamicMissionGeneratorAssembly
 			public Dictionary<string, double> TotalModulesMultiplier = new();
 		}
 
-		private enum Mode
-		{
-			Normal,
-			Time,
-			Zen,
-			Steady
-		}
-
 		private class TweakSettings
 		{
 			public float FadeTime = 1f;
@@ -769,7 +785,8 @@ namespace DynamicMissionGeneratorAssembly
 				if (tweakSettings.DisableAdvantageous && mode != Mode.Normal) return $"Advantageous features are disabled. Cannot set mode to {mode} Mode.";
 				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"));
 
-				tweakSettings.Mode = mode;
+				if (mode != Mode.None)
+					tweakSettings.Mode = mode;
 
 				File.WriteAllText(tweaksPath, JsonConvert.SerializeObject(tweakSettings, Formatting.Indented));
 			}
@@ -788,11 +805,11 @@ namespace DynamicMissionGeneratorAssembly
 			return null;
 		}
 
-		private bool ParseTextToMission(string text, out KMMission mission, out int? ruleseed, out Mode mode, out List<string> messages)
+		private DMGMission ParseTextToMission(string text)
 		{
-			mode = Mode.Normal;
+			Mode mode = Mode.None;
 			bool modeSet = false;
-			messages = new List<string>();
+			List<string> messages = new List<string>();
 
 			var matches = tokenRegex.Matches(text);
 
@@ -812,7 +829,10 @@ namespace DynamicMissionGeneratorAssembly
 			int? factoryMode = null;
 			bool noDuplicates = false;
 
-			mission = ScriptableObject.CreateInstance<KMMission>();
+			string gameplayRoom = null;
+			bool onlyFactoryRoom = true;
+
+			KMMission mission = ScriptableObject.CreateInstance<KMMission>();
 			mission.PacingEventsEnabled = true;
 			List<KMComponentPool> pools = null;
 			List<KMComponentPool> noDups = new List<KMComponentPool>();
@@ -921,6 +941,9 @@ namespace DynamicMissionGeneratorAssembly
 								{
 									messages.Add("Invalid factory mode");
 								}
+
+								if (!GetGameplayRooms().Values.Contains(FACTORY_ROOM))
+									messages.Add("Factory gameplay room is not enabled.");
 							}
 							break;
 						case "mode":
@@ -957,6 +980,29 @@ namespace DynamicMissionGeneratorAssembly
 								if (int.TryParse(match.Groups["Value"].Value, out var ruleSeed) && ruleSeed >= 0) defaultRuleSeed = ruleSeed;
 								else messages.Add("Invalid rule seed");
 							}
+							break;
+						case "room":
+							if (bombs != null && currentBomb != null) messages.Add("Room cannot be a bomb-level setting");
+							else if (gameplayRoom != null) messages.Add("Room cannot be specified multiple times");
+
+							var possibleRooms = new List<string>();
+							foreach (var value in match.Groups["Value"].Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(value => value.Trim()))
+							{
+								if (!GetGameplayRooms().TryGetValue(value, out string room))
+								{
+									messages.Add($"Invalid gameplay room '{value}'");
+								}
+								else
+								{
+									possibleRooms.Add(room);
+									onlyFactoryRoom &= room == FACTORY_ROOM;
+								}
+							}
+
+							if (possibleRooms.Count == 0)
+								break;
+
+							gameplayRoom = possibleRooms.Shuffle().First();
 							break;
 					}
 				}
@@ -1144,7 +1190,7 @@ namespace DynamicMissionGeneratorAssembly
 			}
 			else if (bombs.Count == 0) messages.Add("No solvable modules");
 
-			ruleseed = null;
+			int? ruleseed = null;
 			if (ruleSeedSpecified)
 			{
 				var obj = GameObject.Find("VanillaRuleModifierProperties");
@@ -1155,11 +1201,29 @@ namespace DynamicMissionGeneratorAssembly
 					ruleseed = defaultRuleSeed ?? UnityEngine.Random.Range(1, 1000);
 			}
 
+			if (factoryMode != null)
+			{
+				// If factory mode is enabled, you must only specify the factory room.
+				if (!onlyFactoryRoom)
+					messages.Add("Other gameplay rooms cannot be specified if Factory mode is enabled.");
+
+				// Make sure the gameplay room is set to the factory room.
+				gameplayRoom = FACTORY_ROOM;
+			}
+
+			var dmgMission = new DMGMission
+			{
+				KMMission = mission,
+				RuleSeed = ruleseed,
+				Mode = mode,
+				GameplayRoom = gameplayRoom,
+				Messages = messages,
+			};
+
 			if (messages.Count > 0)
 			{
 				Destroy(mission);
-				mission = null;
-				return false;
+				return dmgMission;
 			}
 			if (bombs != null)
 			{
@@ -1176,9 +1240,8 @@ namespace DynamicMissionGeneratorAssembly
 			}
 			if (factoryMode.HasValue)
 				mission.GeneratorSetting.ComponentPools.Add(new KMComponentPool() { Count = factoryMode.Value, ModTypes = new List<string>() { "Factory Mode" } });
-			messages = null;
 			mission.DisplayName = "Custom Freeplay";
-			return true;
+			return dmgMission;
 		}
 
 		public static List<KMComponentPool> CalculateNoDuplicates(int index)
@@ -1271,6 +1334,16 @@ namespace DynamicMissionGeneratorAssembly
 			return roomPrefab.GetComponentInChildren(_elevatorRoomType, true) != null ? 54 : GameInfo.GetMaximumBombModules();
 		}
 
+		private Dictionary<string, string> GetGameplayRooms()
+		{
+			var instance = ReflectionHelper.FindType("ModManager").GetValue<object>("Instance");
+
+			var roomList = instance.CallMethod<IList>("GetGameplayRooms").Cast<MonoBehaviour>().ToDictionary(room => room.gameObject.name.ToLowerInvariant().Replace(' ', '_'), room => room.gameObject.name);
+			roomList.Add("default", "FacilityRoom");
+
+			return roomList;
+		}
+
 		private static Type _gameplayStateType;
 		private static FieldInfo _gameplayroomPrefabOverrideField;
 
@@ -1295,7 +1368,7 @@ namespace DynamicMissionGeneratorAssembly
 		}
 	}
 
-	#pragma warning disable IDE0051, RCS1213
+#pragma warning disable IDE0051, RCS1213
 	[HarmonyPatch]
 	internal static class CreateBombPatch
 	{
@@ -1331,5 +1404,33 @@ namespace DynamicMissionGeneratorAssembly
 			settings.SetValue("ComponentPools", pools);
 		}
 	}
-	#pragma warning restore IDE0051, RCS1213
+
+	[HarmonyPatch]
+	internal static class GameplayStatePatch
+	{
+		private static MethodBase method;
+
+		private static bool Prepare()
+		{
+			var type = ReflectionHelper.FindType("GameplayState");
+			method = type?.GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance);
+			return method != null;
+		}
+
+		private static MethodBase TargetMethod() => method;
+
+		private static void Prefix(object __instance)
+		{
+			var roomName = MissionInputPage.GameplayRoomOverride;
+			if (roomName == null)
+				return;
+
+			var pool = __instance.GetValue<object>("GameplayRoomPool");
+			pool.CallMethod("AddMods");
+			var rooms = pool.GetValue<IList>("Objects").Cast<GameObject>().AddItem(pool.GetValue<GameObject>("Default"));
+
+			ReflectionHelper.FindType("GameplayState").SetValue("GameplayRoomPrefabOverride", rooms.First(room => room.name == roomName));
+		}
+	}
+#pragma warning restore IDE0051, RCS1213
 }
