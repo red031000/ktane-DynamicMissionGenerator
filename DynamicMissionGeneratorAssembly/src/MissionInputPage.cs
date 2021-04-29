@@ -53,7 +53,7 @@ namespace DynamicMissionGeneratorAssembly
 				(?<Close>\))|
 				(?:time:)?(?<Time1>\d{1,9}):(?<Time2>\d{1,9})(?::(?<Time3>\d{1,9}))?(?!\S)|
 				(?<Strikes>\d{1,9})X(?!\S)|
-				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|mode|ruleseed)\b(?::(?<Value>[^\s)]*))?|
+				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|mode|ruleseed)\b(?::\s*(?<Value>[^\s)]*))?|
 				(?<NoDup>!)?
 				(?:(?<Count>\d{1,9})\s*[;*]\s*)?
 				(?:
@@ -889,8 +889,11 @@ namespace DynamicMissionGeneratorAssembly
 						case "widgets":
 							if (widgetCountSpecified) messages.Add("Widget count specified multiple times");
 							widgetCountSpecified = true;
-
-							var widgetCount = int.Parse(match.Groups["Value"].Value);
+							if (!int.TryParse(match.Groups["Value"].Value, out int widgetCount))
+							{
+								messages.Add("Invalid widget count");
+								break;
+							}
 							if (widgetCount < 0) messages.Add("Invalid widget count");
 
 							if (currentBomb != null) currentBomb.OptionalWidgetCount = widgetCount;
@@ -1022,34 +1025,33 @@ namespace DynamicMissionGeneratorAssembly
 							pool.SpecialComponentType = SpecialComponentTypeEnum.ALL_NEEDY;
 							break;
 						default:
-							bool useProfile = list.StartsWith("profile:", StringComparison.InvariantCultureIgnoreCase);
-							bool useNeedyProfile = !useProfile && list.StartsWith("needyprofile:", StringComparison.InvariantCultureIgnoreCase);
-
-							if (useProfile || useNeedyProfile)
+							foreach (string id in list.Split(',', '+').Select(s => s.Trim()))
 							{
-								var profileName = list.Substring(useNeedyProfile ? 13 : 8);
-								if (!profiles.TryGetValue(profileName, out var profile))
+								bool useProfile = id.StartsWith("profile:", StringComparison.InvariantCultureIgnoreCase);
+								bool useNeedyProfile = !useProfile && id.StartsWith("needyprofile:", StringComparison.InvariantCultureIgnoreCase);
+								if (useProfile || useNeedyProfile)
 								{
-									messages.Add($"No profile named '{profileName}' was found.");
-								}
-								else
-								{
-									Debug.Log("[Dynamic Mission Generator] Disabled list: " + string.Join(", ", profile.DisabledList.ToArray()));
-									pool.ModTypes.AddRange((useNeedyProfile ? enabledNeedyModules : enabledSolvableModules).Except(profile.DisabledList));
-									if (pool.ModTypes.Count == 0)
+									var profileName = id.Substring(useNeedyProfile ? 13 : 8);
+									if (!profiles.TryGetValue(profileName, out var profile))
 									{
-										messages.Add($"Profile '{profileName}' enables no valid modules.");
-										allSolvable = false;
+										messages.Add($"No profile named '{profileName}' was found.");
 									}
 									else
 									{
-										allSolvable = useProfile;
+										Debug.Log("[Dynamic Mission Generator] Disabled list: " + string.Join(", ", profile.DisabledList.ToArray()));
+										pool.ModTypes.AddRange((useNeedyProfile ? enabledNeedyModules : enabledSolvableModules).Except(profile.DisabledList));
+										if (pool.ModTypes.Count == 0)
+										{
+											messages.Add($"Profile '{profileName}' enables no valid modules.");
+											allSolvable = false;
+										}
+										else
+										{
+											allSolvable = useProfile;
+										}
 									}
 								}
-							}
-							else
-							{
-								foreach (string id in list.Split(',', '+').Select(s => s.Trim()))
+								else
 								{
 									switch (id)
 									{
@@ -1089,6 +1091,7 @@ namespace DynamicMissionGeneratorAssembly
 											break;
 									}
 								}
+								
 							}
 							break;
 					}
