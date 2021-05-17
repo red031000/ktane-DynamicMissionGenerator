@@ -1,8 +1,9 @@
 using System.Collections.Generic;
 
-class DMGMission
+public class DMGMission
 {
 	public KMMission KMMission;
+	public int MissionSeed;
 	public int? RuleSeed;
 	public Mode Mode;
 	public string GameplayRoom;

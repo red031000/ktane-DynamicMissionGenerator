@@ -53,7 +53,7 @@ namespace DynamicMissionGeneratorAssembly
 				(?<Close>\))|
 				(?:time:)?(?<Time1>\d{1,9}):(?<Time2>\d{1,9})(?::(?<Time3>\d{1,9}))?(?!\S)|
 				(?<Strikes>\d{1,9})X(?!\S)|
-				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|mode|ruleseed|room)\b(?::(?<Value>(?:,\s*|[^\s)])*))?|
+				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|mode|ruleseed|missionseed|room)\b(?::(?<Value>(?:,\s*|[^\s)])*))?|
 				(?<NoDup>!)?
 				(?:(?<Count>\d{1,9})\s*[;*]\s*)?
 				(?:
@@ -369,7 +369,7 @@ namespace DynamicMissionGeneratorAssembly
 				StartCoroutine(ShowErrorPopupCoroutine(modeError));
 				return false;
 			}
-
+			
 			if (mission.RuleSeed != null)
 			{
 				var obj = GameObject.Find("VanillaRuleModifierProperties");
@@ -380,7 +380,8 @@ namespace DynamicMissionGeneratorAssembly
 
 			GameplayRoomOverride = mission.GameplayRoom;
 
-			GameCommands.StartMission(mission.KMMission, "-1");
+			// Mission seed (int) must be converted into a string for ModGameCommands
+			GameCommands.StartMission(mission.KMMission, mission.MissionSeed.ToString());
 
 			return false;
 		}
@@ -631,6 +632,7 @@ namespace DynamicMissionGeneratorAssembly
 			moduleData.Add(new ModuleData("nopacing", "[Disable pacing events]"));
 			moduleData.Add(new ModuleData("widgets:", "[Set widget count]"));
 			moduleData.Add(new ModuleData("ruleseed:", "[Set rule seed]"));
+			moduleData.Add(new ModuleData("missionseed:", "[Set mission seed]"));
 			moduleData.Add(new ModuleData("needyactivationtime:", "[Set needy activation time in seconds]"));
 			if (factoryEnabled) moduleData.Add(new ModuleData("factory:", "[Set Factory mode]"));
 			if (tweaksEnabled) moduleData.Add(new ModuleData("mode:", "[Set game mode]"));
@@ -837,10 +839,11 @@ namespace DynamicMissionGeneratorAssembly
 			int bombRepeatCount = 0;
 			int? defaultTime = null, defaultStrikes = null, defaultNeedyActivationTime = null, defaultWidgetCount = null, defaultRuleSeed = null;
 			bool defaultFrontOnly = false;
-			bool timeSpecified = false, strikesSpecified = false, needyActivationTimeSpecified = false, widgetCountSpecified = false, ruleSeedSpecified = false;
+			bool timeSpecified = false, strikesSpecified = false, needyActivationTimeSpecified = false, widgetCountSpecified = false, ruleSeedSpecified = false, missionSeedSpecified = false;
 			bool anySolvableModules = false;
 			int? factoryMode = null;
 			bool noDuplicates = false;
+			int missionSeed = -1;
 
 			string gameplayRoom = null;
 			bool onlyFactoryRoom = true;
@@ -992,6 +995,17 @@ namespace DynamicMissionGeneratorAssembly
 								defaultRuleSeed = ruleSeed;
 							else
 								messages.Add("Invalid rule seed");
+							break;
+						case "missionseed":
+							if (bombs != null && currentBomb != null) messages.Add("Mission seed cannot be a bomb-level setting");
+							else if (missionSeedSpecified) messages.Add("Mission seed specified multiple times");
+							missionSeedSpecified = true;
+
+							// Even though ModGameCommands accepts a string as a seed, it later parses it into an int
+							// and will throw an exception if the string is not an int. We should make sure that the user
+							// gives us an int before giving that to ModGameCommands.
+							if (int.TryParse(match.Groups["Value"].Value, out int seed)) missionSeed = seed;
+							else messages.Add("Invalid mission seed");
 							break;
 						case "room":
 							if (bombs != null && currentBomb != null) messages.Add("Room cannot be a bomb-level setting");
@@ -1226,6 +1240,7 @@ namespace DynamicMissionGeneratorAssembly
 			{
 				KMMission = mission,
 				RuleSeed = ruleseed,
+				MissionSeed = missionSeed,
 				Mode = mode,
 				GameplayRoom = gameplayRoom,
 				Messages = messages,
