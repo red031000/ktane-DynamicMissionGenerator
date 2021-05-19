@@ -796,7 +796,7 @@ namespace DynamicMissionGeneratorAssembly
 			{
 				tweakSettings = JsonConvert.DeserializeObject<TweakSettings>(File.ReadAllText(tweaksPath));
 				if (tweakSettings.DisableAdvantageous && mode != Mode.Normal) return $"Advantageous features are disabled. Cannot set mode to {mode} Mode.";
-				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"));
+				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"), overwrite: true);
 
 				if (mode != Mode.None)
 					tweakSettings.Mode = mode;
@@ -807,7 +807,7 @@ namespace DynamicMissionGeneratorAssembly
 			if (File.Exists(modePath))
 			{
 				ModeSettings modeSettings = JsonConvert.DeserializeObject<ModeSettings>(File.ReadAllText(modePath));
-				File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"));
+				File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"), overwrite: true);
 
 				// Only set Time Mode time if Time Mode is enabled.
 				if (mode == Mode.Time || tweakSettings != null && tweakSettings.Mode == Mode.Time) modeSettings.TimeModeStartingTime = mission.GeneratorSetting.TimeLimit / 60f;
