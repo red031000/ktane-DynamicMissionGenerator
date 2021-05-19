@@ -35,28 +35,18 @@ namespace DynamicMissionGeneratorAssembly
 			GetComponent<KMGameInfo>().OnStateChange += state =>
 			{
 				if (state == KMGameInfo.State.Setup)
-				{
-					if (prevRuleSeed.HasValue)
-					{
-						var obj = GameObject.Find("VanillaRuleModifierProperties");
-						var dic = obj?.GetComponent<IDictionary<string, object>>();
-						if (dic != null) dic["RuleSeed"] = new object[] { prevRuleSeed, true };
-						prevRuleSeed = null;
-					}
-
-					StartCoroutine(RestoreModeSettingsLate());
-				}
+					StartCoroutine(RestoreSettingsLate());
 			};
 		}
 
-		private IEnumerator RestoreModeSettingsLate()
+		private IEnumerator RestoreSettingsLate()
 		{
 			yield return null;
-			RestoreModeSettings();
-			yield break;
+			RestoreSettings();
 		}
 
-		public static void RestoreModeSettings()
+		// Restores ModeSettings, TweakSettings, and the rule seed, after a game has ended
+		public void RestoreSettings()
 		{
 			string modSettingsPath = Path.Combine(Application.persistentDataPath, "Modsettings");
 			string modeSettingsBackupPath = Path.Combine(modSettingsPath, "ModeSettings.json.bak");
@@ -70,6 +60,14 @@ namespace DynamicMissionGeneratorAssembly
 			{
 				File.Copy(tweakSettingsBackupPath, Path.Combine(modSettingsPath, "TweakSettings.json"), true);
 				File.Delete(tweakSettingsBackupPath);
+			}
+
+			if (prevRuleSeed.HasValue)
+			{
+				var obj = GameObject.Find("VanillaRuleModifierProperties");
+				var dic = obj?.GetComponent<IDictionary<string, object>>();
+				if (dic != null) dic["RuleSeed"] = new object[] { prevRuleSeed, true };
+				prevRuleSeed = null;
 			}
 		}
 
