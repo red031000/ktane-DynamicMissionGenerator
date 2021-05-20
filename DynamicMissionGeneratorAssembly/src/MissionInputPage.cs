@@ -375,7 +375,7 @@ namespace DynamicMissionGeneratorAssembly
 				var obj = GameObject.Find("VanillaRuleModifierProperties");
 				var dic = obj?.GetComponent<IDictionary<string, object>>();
 				DynamicMissionGenerator.Instance.prevRuleSeed = (int) dic["RuleSeed"];
-				dic["RuleSeed"] = new object[] { mission.RuleSeed, true };
+				dic["RuleSeed"] = new object[] { mission.RuleSeed.Value, true };
 			}
 
 			GameplayRoomOverride = mission.GameplayRoom;
@@ -493,6 +493,19 @@ namespace DynamicMissionGeneratorAssembly
 									item.HighlightID(0, item.ID.Length);
 								}
 								break;
+
+							case "ruleseed":
+								var obj = GameObject.Find("VanillaRuleModifierProperties");
+								var dic = obj?.GetComponent<IDictionary<string, object>>();
+								if (obj == null || dic == null)
+								{
+									var item = AddListItem("ruleseed:" + lastMatch.Groups["Value"].Value, "[Rule Seed Modifier is not installed or disabled]", false);
+									item.HighlightID(0, item.ID.Length);
+								}
+								else
+									AddListItem("ruleseed:random", "Set random rule seed", true);
+								break;
+
 							case "room":
 								// Provide autocomplete for the current room that's being specified in a comma separated list.
 								var match = Regex.Match(value, ",\\s*", RegexOptions.RightToLeft);
@@ -783,7 +796,7 @@ namespace DynamicMissionGeneratorAssembly
 			{
 				tweakSettings = JsonConvert.DeserializeObject<TweakSettings>(File.ReadAllText(tweaksPath));
 				if (tweakSettings.DisableAdvantageous && mode != Mode.Normal) return $"Advantageous features are disabled. Cannot set mode to {mode} Mode.";
-				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"));
+				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"), overwrite: true);
 
 				if (mode != Mode.None)
 					tweakSettings.Mode = mode;
@@ -794,7 +807,7 @@ namespace DynamicMissionGeneratorAssembly
 			if (File.Exists(modePath))
 			{
 				ModeSettings modeSettings = JsonConvert.DeserializeObject<ModeSettings>(File.ReadAllText(modePath));
-				File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"));
+				File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"), overwrite: true);
 
 				// Only set Time Mode time if Time Mode is enabled.
 				if (mode == Mode.Time || tweakSettings != null && tweakSettings.Mode == Mode.Time) modeSettings.TimeModeStartingTime = mission.GeneratorSetting.TimeLimit / 60f;
@@ -974,12 +987,11 @@ namespace DynamicMissionGeneratorAssembly
 							ruleSeedSpecified = true;
 
 							if (match.Groups["Value"].Value == "random")
-								defaultRuleSeed = null;
+								defaultRuleSeed = -1;
+							else if (int.TryParse(match.Groups["Value"].Value, out var ruleSeed) && ruleSeed >= 0)
+								defaultRuleSeed = ruleSeed;
 							else
-							{
-								if (int.TryParse(match.Groups["Value"].Value, out var ruleSeed) && ruleSeed >= 0) defaultRuleSeed = ruleSeed;
-								else messages.Add("Invalid rule seed");
-							}
+								messages.Add("Invalid rule seed");
 							break;
 						case "room":
 							if (bombs != null && currentBomb != null) messages.Add("Room cannot be a bomb-level setting");
@@ -1018,7 +1030,7 @@ namespace DynamicMissionGeneratorAssembly
 							if (defaultStrikes.HasValue) { strikesSpecified = true; currentBomb.NumStrikes = defaultStrikes.Value; }
 							if (defaultNeedyActivationTime.HasValue) { needyActivationTimeSpecified = true; currentBomb.TimeBeforeNeedyActivation = defaultNeedyActivationTime.Value; }
 							if (defaultWidgetCount.HasValue) { widgetCountSpecified = true; currentBomb.OptionalWidgetCount = defaultWidgetCount.Value; }
-							if (defaultRuleSeed.HasValue) { ruleSeedSpecified = true; }
+							if (defaultRuleSeed != null) { ruleSeedSpecified = true; }
 						}
 					}
 					else
@@ -1137,7 +1149,6 @@ namespace DynamicMissionGeneratorAssembly
 											break;
 									}
 								}
-								
 							}
 							break;
 					}
@@ -1196,9 +1207,9 @@ namespace DynamicMissionGeneratorAssembly
 				var obj = GameObject.Find("VanillaRuleModifierProperties");
 				var dic = obj?.GetComponent<IDictionary<string, object>>();
 				if (obj == null || dic == null)
-					messages.Add("Rule seed modifier mod is not installed or disabled.");
+					messages.Add("Rule Seed Modifier is not installed or disabled.");
 				else
-					ruleseed = defaultRuleSeed ?? UnityEngine.Random.Range(1, 1000);
+					ruleseed = defaultRuleSeed == -1 ? UnityEngine.Random.Range(1, 1000) : defaultRuleSeed;
 			}
 
 			if (factoryMode != null)
