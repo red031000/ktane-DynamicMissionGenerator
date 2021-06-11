@@ -6,6 +6,8 @@ public class DMGMission
 	public int MissionSeed;
 	public int? RuleSeed;
 	public Mode Mode;
+	public Dictionary<string, bool> TweakSettings;
+	public Dictionary<string, float> ModeSettings;
 	public string GameplayRoom;
 	public List<string> Messages;
 }
