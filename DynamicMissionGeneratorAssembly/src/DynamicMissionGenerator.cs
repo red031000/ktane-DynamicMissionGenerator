@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 
+using HarmonyLib;
+
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,6 +15,7 @@ namespace DynamicMissionGeneratorAssembly
 		public KMSelectable MissionCreationPagePrefab;
 		public KMSelectable MissionsPagePrefab;
 		public Texture2D ModSelectorIcon;
+		public DynamicMissionGeneratorApi DynamicMissionGeneratorApi;
 
 		[HideInInspector]
 		public MissionInputPage InputPage;
@@ -27,6 +30,9 @@ namespace DynamicMissionGeneratorAssembly
 
 		private void Start()
 		{
+			var harmony = new Harmony("red031000.dynamicmissiongenerator");
+			harmony.PatchAll();
+
 			Instance = this;
 
 			StartCoroutine(FindModSelector());
@@ -35,7 +41,10 @@ namespace DynamicMissionGeneratorAssembly
 			GetComponent<KMGameInfo>().OnStateChange += state =>
 			{
 				if (state == KMGameInfo.State.Setup)
+				{
+					DynamicMissionGeneratorApi.Instance?.FinishDynamicMissionGeneratorMission();
 					StartCoroutine(RestoreSettingsLate());
+				}
 			};
 		}
 
