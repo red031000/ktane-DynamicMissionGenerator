@@ -26,7 +26,7 @@ namespace DynamicMissionGeneratorAssembly
 		private Dictionary<string, IList<string?>>? moduleProfiles;
 		/// <summary>Stores the internal read-write lists for <see cref="ModuleProfiles"/>.</summary>
 		private Dictionary<string, List<string?>>? privateModuleProfiles;
-		internal List<string?>? firstBombProfileList;
+		private List<string?>? firstBombProfileList;
 		internal Queue<Queue<string?>>? upcomingBombProfileLists;
 		internal Queue<string?>? currentBombProfileList;
 		internal GameObject? currentBomb;

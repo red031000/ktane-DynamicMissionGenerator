@@ -1422,6 +1422,7 @@ namespace DynamicMissionGeneratorAssembly
 				else
 				{
 					validateBomb(messages);
+					DynamicMissionGeneratorApi.Instance.AddProfileList(currentBombModuleProfiles, bombRepeatCount);
 					mission.GeneratorSetting = currentBomb;
 				}
 			}
