@@ -149,9 +149,6 @@ namespace DynamicMissionGeneratorAssembly
 
 		public void Start()
 		{
-			var harmony = new Harmony("red031000.dynamicmissiongenerator");
-			harmony.PatchAll();
-
 			InputField.Scroll += InputField_Scroll;
 			InputField.Submit += (sender, e) => RunInteract();
 			InputField.TabPressed += InputField_TabPressed;
@@ -394,7 +391,6 @@ namespace DynamicMissionGeneratorAssembly
 				Debug.Log(JsonConvert.SerializeObject(mission, Formatting.Indented), this);
 				return false;
 			}
-			Debug.Log(JsonConvert.SerializeObject(mission, Formatting.Indented), this);
 
 			try
 			{
@@ -778,7 +774,7 @@ namespace DynamicMissionGeneratorAssembly
 						var profile = new JsonSerializer().Deserialize<Profile>(new JsonTextReader(reader));
 						if (profile.DisabledList == null)
 						{
-							Debug.LogWarning($"[Profile Revealer] Could not load profile {Path.GetFileName(file)}");
+							Debug.LogWarning($"[Dynamic Mission Generator] Could not load profile {Path.GetFileName(file)}");
 							continue;
 						}
 
@@ -970,6 +966,8 @@ namespace DynamicMissionGeneratorAssembly
 			bool modeSet = false;
 			List<string> messages = new List<string>();
 
+			DynamicMissionGeneratorApi.Instance.SetUpDynamicMissionGeneratorMission();
+			var currentBombModuleProfiles = new List<string>();
 			var matches = tokenRegex.Matches(text);
 
 			var allSolvableModules = new HashSet<string>((IEnumerable<string>) DynamicMissionGenerator.ModSelectorApi?["AllSolvableModules"] ?? new string[0]);
@@ -1005,6 +1003,7 @@ namespace DynamicMissionGeneratorAssembly
 				timeSpecified = strikesSpecified = needyActivationTimeSpecified = widgetCountSpecified = ruleSeedSpecified = anySolvableModules = false;
 				pools = new List<KMComponentPool>();
 				noDups.Clear();
+				currentBombModuleProfiles = new();
 			}
 
 			void validateBomb(List<string> messages)
@@ -1276,6 +1275,7 @@ namespace DynamicMissionGeneratorAssembly
 					if (pool.Count <= 0) messages.Add("Invalid module pool count");
 
 					bool allSolvable = true;
+					string profileName = null;
 					string list = FixModuleID(match.Groups["ID"].Value);
 					switch (list)
 					{
@@ -1313,7 +1313,7 @@ namespace DynamicMissionGeneratorAssembly
 								bool useNeedyProfile = !useProfile && id.StartsWith("needyprofile:", StringComparison.InvariantCultureIgnoreCase);
 								if (useProfile || useNeedyProfile)
 								{
-									var profileName = id.Substring(useNeedyProfile ? 13 : 8);
+									profileName = id.Substring(useNeedyProfile ? 13 : 8);
 									if (!profiles.TryGetValue(profileName, out var profile))
 									{
 										messages.Add($"No profile named '{profileName}' was found.");
@@ -1386,6 +1386,7 @@ namespace DynamicMissionGeneratorAssembly
 						noDups.Add(pool);
 					else
 						pools.Add(pool);
+					for (int i = 0; i < pool.Count; ++i) currentBombModuleProfiles.Add(profileName);
 				}
 				else if (match.Groups["Open"].Success)
 				{
@@ -1404,6 +1405,7 @@ namespace DynamicMissionGeneratorAssembly
 					else
 					{
 						validateBomb(messages);
+						DynamicMissionGeneratorApi.Instance.AddProfileList(currentBombModuleProfiles, bombRepeatCount);
 						for (; bombRepeatCount > 0; --bombRepeatCount) bombs.Add(currentBomb);
 						currentBomb = null;
 
@@ -1420,6 +1422,7 @@ namespace DynamicMissionGeneratorAssembly
 				else
 				{
 					validateBomb(messages);
+					DynamicMissionGeneratorApi.Instance.AddProfileList(currentBombModuleProfiles, bombRepeatCount);
 					mission.GeneratorSetting = currentBomb;
 				}
 			}
@@ -1640,6 +1643,40 @@ namespace DynamicMissionGeneratorAssembly
 			};
 			object pools = ReflectionHelper.FindType("ModMission").CallMethod<object>("CreateGeneratorSettingsFromMod", null, generator).GetValue<object>("ComponentPools");
 			settings.SetValue("ComponentPools", pools);
+		}
+	}
+
+	[HarmonyPatch]
+	internal static class BombGeneratorPatch2
+	{
+		private static MethodBase method;
+
+		private static bool Prepare()
+		{
+			method = ReflectionHelper.FindType("BombGenerator")?.GetMethod("SelectWeightedRandomComponentType", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			return method != null;
+		}
+
+		private static MethodBase TargetMethod() => method;
+
+		private static void Postfix(string __result, Component ___bomb)
+		{
+			// This patch associates module IDs for each bomb with the profile the modules where chosen from.
+			// This requires processing the modules in the order they are selected.
+			// It is not necessarily the same as the order they were instantiated or (equivalently) the order of the BombComponents list.
+			if (!DynamicMissionGeneratorApi.Instance.InDynamicMissionGeneratorMission) return;
+			if (___bomb.gameObject != DynamicMissionGeneratorApi.Instance.currentBomb)
+			{
+				// A new bomb is being generated - grab the next bomb's profile list.
+				// If we run out of lists, this must be an infinite factory mission, meaning the first bomb is repeated.
+				DynamicMissionGeneratorApi.Instance.currentBombProfileList = DynamicMissionGeneratorApi.Instance.GetNextProfileList();
+				DynamicMissionGeneratorApi.Instance.currentBomb = ___bomb.gameObject;
+			}
+
+			string profile = DynamicMissionGeneratorApi.Instance.currentBombProfileList.Count > 0
+				? DynamicMissionGeneratorApi.Instance.currentBombProfileList.Dequeue()
+				: null;
+			DynamicMissionGeneratorApi.Instance.AddModule(__result, profile);
 		}
 	}
 
