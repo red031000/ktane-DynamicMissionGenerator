@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -603,24 +603,28 @@ namespace DynamicMissionGeneratorAssembly
 					{
 						string s = FixModuleID(GetLastModuleID(lastMatch.Groups["ID"].Value));
 						tabStub = s;
-						if (!lastMatch.Groups["Count"].Success && !string.IsNullOrEmpty(lastMatch.Groups["ID"].Value) && lastMatch.Groups["ID"].Value.All(char.IsDigit))
+
+						if (!string.IsNullOrEmpty(s))
 						{
-							var item = AddListItem($"{s}:00", "[Set time]", true);
-							item.HighlightID(0, s.Length);
-							item = AddListItem($"{s}X", "[Set strike limit]", true);
-							item.HighlightID(0, s.Length);
-							item = AddListItem($"{s}*", "[Set module pool count]", true);
-							item.HighlightID(0, s.Length);
-						}
-						foreach (var m in moduleData)
-						{
-							bool id = m.ModuleType.StartsWith(s, StringComparison.InvariantCultureIgnoreCase);
-							bool name = !id && m.DisplayName.StartsWith(s, StringComparison.InvariantCultureIgnoreCase);
-							if (id || name)
+							if (!lastMatch.Groups["Count"].Success && !string.IsNullOrEmpty(lastMatch.Groups["ID"].Value) && lastMatch.Groups["ID"].Value.All(char.IsDigit))
 							{
-								var item = AddListItem(m.ModuleType, m.DisplayName, true);
-								if (id) item.HighlightID(0, s.Length);
-								else if (name) item.HighlightName(0, s.Length);
+								var item = AddListItem($"{s}:00", "[Set time]", true);
+								item.HighlightID(0, s.Length);
+								item = AddListItem($"{s}X", "[Set strike limit]", true);
+								item.HighlightID(0, s.Length);
+								item = AddListItem($"{s}*", "[Set module pool count]", true);
+								item.HighlightID(0, s.Length);
+							}
+							foreach (var m in moduleData)
+							{
+								bool id = m.ModuleType.StartsWith(s, StringComparison.InvariantCultureIgnoreCase);
+								bool name = !id && m.DisplayName.StartsWith(s, StringComparison.InvariantCultureIgnoreCase);
+								if (id || name)
+								{
+									var item = AddListItem(m.ModuleType, m.DisplayName, true);
+									if (id) item.HighlightID(0, s.Length);
+									else if (name) item.HighlightName(0, s.Length);
+								}
 							}
 						}
 					}
