@@ -1631,7 +1631,7 @@ namespace DynamicMissionGeneratorAssembly
 			if (firstPool == null)
 				return;
 
-			var modTypes = firstPool.GetValue<IList>("ModTypes").Cast<string>().ToList();
+			var modTypes = firstPool.GetValue<IList>("ModTypes")?.Cast<string>()?.ToList();
 			if (modTypes == null || modTypes.Count != 2 || modTypes[0] != MissionInputPage.NO_DUPLICATES || !int.TryParse(modTypes[1], out int index))
 				return;
 
