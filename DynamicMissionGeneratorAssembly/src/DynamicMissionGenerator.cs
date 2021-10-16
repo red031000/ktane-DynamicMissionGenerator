@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -25,6 +25,8 @@ namespace DynamicMissionGeneratorAssembly
 
 		internal int? prevRuleSeed;
 
+		private KMGameInfo.State currentState;
+
 		private void Start()
 		{
 			Instance = this;
@@ -34,6 +36,15 @@ namespace DynamicMissionGeneratorAssembly
 			Directory.CreateDirectory(MissionsFolder);
 			GetComponent<KMGameInfo>().OnStateChange += state =>
 			{
+				// If we are leaving the gameplay room, clear room override.
+				if (currentState == KMGameInfo.State.Gameplay && state != KMGameInfo.State.Gameplay && MissionInputPage.GameplayRoomOverride != null)
+				{
+					MissionInputPage.GameplayRoomOverride = null;
+					ReflectionHelper.FindType("GameplayState").SetValue("GameplayRoomPrefabOverride", null);
+				}
+
+				currentState = state;
+
 				if (state == KMGameInfo.State.Setup)
 					StartCoroutine(RestoreSettingsLate());
 			};
