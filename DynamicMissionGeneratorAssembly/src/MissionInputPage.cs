@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -413,7 +412,7 @@ namespace DynamicMissionGeneratorAssembly
 				StartCoroutine(ShowErrorPopupCoroutine(modeError));
 				return false;
 			}
-			
+
 			if (mission.RuleSeed != null)
 			{
 				var obj = GameObject.Find("VanillaRuleModifierProperties");
@@ -1192,7 +1191,7 @@ namespace DynamicMissionGeneratorAssembly
 									}
 									else
 									{
-										mode = (Mode)modeIndex;
+										mode = (Mode) modeIndex;
 										modeSet = true;
 									}
 								}
@@ -1202,17 +1201,17 @@ namespace DynamicMissionGeneratorAssembly
 								else if (ruleSeedSpecified) messages.Add("Rule seed specified multiple times");
 								ruleSeedSpecified = true;
 
-							if (match.Groups["Value"].Value == "random")
-								defaultRuleSeed = -1;
-							else if (int.TryParse(match.Groups["Value"].Value, out var ruleSeed) && ruleSeed >= 0)
-								defaultRuleSeed = ruleSeed;
-							else
-								messages.Add("Invalid rule seed");
-							break;
-						case "missionseed":
-							if (bombs != null && currentBomb != null) messages.Add("Mission seed cannot be a bomb-level setting");
-							else if (missionSeedSpecified) messages.Add("Mission seed specified multiple times");
-							missionSeedSpecified = true;
+								if (match.Groups["Value"].Value == "random")
+									defaultRuleSeed = -1;
+								else if (int.TryParse(match.Groups["Value"].Value, out var ruleSeed) && ruleSeed >= 0)
+									defaultRuleSeed = ruleSeed;
+								else
+									messages.Add("Invalid rule seed");
+								break;
+							case "missionseed":
+								if (bombs != null && currentBomb != null) messages.Add("Mission seed cannot be a bomb-level setting");
+								else if (missionSeedSpecified) messages.Add("Mission seed specified multiple times");
+								missionSeedSpecified = true;
 
 								// Even though ModGameCommands accepts a string as a seed, it later parses it into an int
 								// and will throw an exception if the string is not an int. We should make sure that the user
@@ -1523,8 +1522,10 @@ namespace DynamicMissionGeneratorAssembly
 			}
 
 			// Convert the counts into pools
-			return moduleCounts.Select(pair => {
-				var pool = new KMComponentPool {
+			return moduleCounts.Select(pair =>
+			{
+				var pool = new KMComponentPool
+				{
 					Count = pair.Value
 				};
 

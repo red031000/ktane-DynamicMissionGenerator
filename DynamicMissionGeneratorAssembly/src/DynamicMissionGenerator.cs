@@ -100,11 +100,11 @@ namespace DynamicMissionGeneratorAssembly
 
 		private void RegisterService()
 		{
-			Action<KMSelectable> addPageMethod = (Action<KMSelectable>)ModSelectorApi["AddPageMethod"];
+			Action<KMSelectable> addPageMethod = (Action<KMSelectable>) ModSelectorApi["AddPageMethod"];
 			addPageMethod(MissionCreationPagePrefab);
 			addPageMethod(MissionsPagePrefab);
 
-			Action<string, KMSelectable, Texture2D> addHomePageMethod = (Action<string, KMSelectable, Texture2D>)ModSelectorApi["AddHomePageMethod"];
+			Action<string, KMSelectable, Texture2D> addHomePageMethod = (Action<string, KMSelectable, Texture2D>) ModSelectorApi["AddHomePageMethod"];
 			addHomePageMethod("Dynamic Mission Generator", MissionCreationPagePrefab, ModSelectorIcon);
 		}
 	}

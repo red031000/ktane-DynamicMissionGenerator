@@ -11,7 +11,6 @@ namespace DynamicMissionGeneratorAssembly
 
 		public void OnDestroy()
 		{
-
 		}
 
 		public Alert MakeAlert(string title, string text, Transform parent, KMSelectable parentSelectable)
