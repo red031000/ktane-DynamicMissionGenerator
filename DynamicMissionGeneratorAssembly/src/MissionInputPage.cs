@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using HarmonyLib;
 
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -860,9 +861,17 @@ namespace DynamicMissionGeneratorAssembly
 			public int MissionSeed = -1;
 			public bool CaseGenerator = true;
 			public bool ModuleTweaks = true;
-			public List<string> CaseColors = new();
-			public Dictionary<string, object> Holdables = new();
-			public HashSet<string> PinnedSettings = new();
+		}
+
+		private Dictionary<string, object> MergeSettings(string path, object settings)
+		{
+			var mergedDictionary = JsonConvert.DeserializeObject<Dictionary<string, object>>(File.ReadAllText(path));
+			foreach (var field in settings.GetType().GetFields())
+			{
+				mergedDictionary[field.Name] = field.GetValue(settings);
+			}
+
+			return mergedDictionary;
 		}
 
 		private string UpdateModeSettingsForMission(DMGMission mission)
@@ -955,13 +964,19 @@ namespace DynamicMissionGeneratorAssembly
 			// Make sure to do this after processing in case an error was returned anywhere.
 			if (tweakSettings != null)
 			{
+				// Merge our settings with Tweaks in case there is any new settings.
+				var mergedDictionary = MergeSettings(tweaksPath, tweakSettings);
+
 				File.Copy(tweaksPath, Path.Combine(modSettingsPath, "TweakSettings.json.bak"), true); // I've now added the override bool JUST in case.
-				File.WriteAllText(tweaksPath, JsonConvert.SerializeObject(tweakSettings, Formatting.Indented));
+				File.WriteAllText(tweaksPath, JsonConvert.SerializeObject(mergedDictionary, Formatting.Indented, new StringEnumConverter()));
 			}
 			if (modeSettings != null)
 			{
+				// Merge our settings with Tweaks in case there is any new settings.
+				var mergedDictionary = MergeSettings(modePath, modeSettings);
+
 				File.Copy(modePath, Path.Combine(modSettingsPath, "ModeSettings.json.bak"), true);
-				File.WriteAllText(modePath, JsonConvert.SerializeObject(modeSettings, Formatting.Indented));
+				File.WriteAllText(modePath, JsonConvert.SerializeObject(mergedDictionary, Formatting.Indented, new StringEnumConverter()));
 			}
 
 			return null;
