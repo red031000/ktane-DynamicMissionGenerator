@@ -53,8 +53,8 @@ namespace DynamicMissionGeneratorAssembly
 				(?<Close>\))|
 				(?:time:)?(?<Time1>\d{1,9}):(?<Time2>\d{1,9})(?::(?<Time3>\d{1,9}))?(?!\S)|
 				(?<Strikes>\d{1,9})X(?!\S)|
-				(?<TweakSetting>hud|edgework|disableadvfeat)\b(?::(?<TweakSettingValue>(?:,\s*|[^\s)])*))?|
-				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|mode|ruleseed|missionseed|room|
+				(?<TweakSetting>edgework|disableadvfeat)\b(?::(?<TweakSettingValue>(?:,\s*|[^\s)])*))?|
+				(?<Setting>strikes|needyactivationtime|widgets|nopacing|frontonly|factory|mode|hud|ruleseed|missionseed|room|
 
 					sm_fixedpenalty|sm_percpenalty|
 					tm_maxmult|tm_minmult|tm_mintimegain|tm_mintimelost|tm_multstrikepenalty|tm_pointmult|tm_solvebonus|tm_startmult|tm_timestrikepenalty|
@@ -91,6 +91,13 @@ namespace DynamicMissionGeneratorAssembly
 			new ModuleData("infinitegtime", "Factory: Infinite + global time"),
 			new ModuleData("infinitegstrikes", "Factory: Infinite + global strikes"),
 			new ModuleData("infinitegtimestrikes", "Factory: Infinite + global time and strikes")
+		};
+
+		private static readonly ModuleData[] tweaksBombHUDList = new[]
+		{
+			new ModuleData("off", "HUD Off"),
+			new ModuleData("partial", "Partial HUD"),
+			new ModuleData("on", "HUD On")
 		};
 
 		private static readonly ModuleData[] tweaksModeList = new[]
@@ -565,6 +572,24 @@ namespace DynamicMissionGeneratorAssembly
 									item.HighlightID(0, item.ID.Length);
 								}
 								break;
+							case "hud":
+								if (tweaksEnabled)
+								{
+									foreach (var m in tweaksBombHUDList)
+									{
+										if (m.ModuleType.StartsWith(value))
+										{
+											var item = AddListItem("hud:" + m.ModuleType, m.DisplayName, true);
+											item.HighlightID(0, lastMatch.Groups["Value"].Length + 4);
+										}
+									}
+								}
+								else
+								{
+									var item = AddListItem(lastMatch.Groups["Setting"].Value + ":" + lastMatch.Groups["Value"].Value, "[Tweaks is not enabled]", false);
+									item.HighlightID(0, item.ID.Length);
+								}
+								break;
 
 							case "ruleseed":
 								var obj = GameObject.Find("VanillaRuleModifierProperties");
@@ -852,9 +877,9 @@ namespace DynamicMissionGeneratorAssembly
 			public List<string> DemandBasedModsExcludeList = new();
 			public int DemandModLimit = -1;
 			public bool FixFER = false;
-			public bool BombHUD = false;
+			public HUDMode BombHUD = HUDMode.Off;
 			public bool ShowEdgework = false;
-			public bool DisableAdvantageous = false;
+			public AdvantageousMode DisableAdvantageous = AdvantageousMode.Off;
 			public bool ShowTips = true;
 			public List<string> HideTOC = new();
 			public Mode Mode = Mode.Normal;
@@ -888,33 +913,32 @@ namespace DynamicMissionGeneratorAssembly
 			{
 				tweakSettings = JsonConvert.DeserializeObject<TweakSettings>(File.ReadAllText(tweaksPath));
 
-				bool setHud = false, setEdgework = false, setAdv = false;
+				bool setEdgework = false, setAdv = false;
 				foreach (KeyValuePair<string, bool> pair in mission.TweakSettings)
 				{
 					bool value = pair.Value;
 					switch (pair.Key)
 					{
-						case "hud":
-							tweakSettings.BombHUD = value;
-							setHud = true;
-							break;
 						case "edgework":
 							tweakSettings.ShowEdgework = value;
 							setEdgework = true;
 							break;
 						case "disableadvfeat":
-							tweakSettings.DisableAdvantageous = value;
+							tweakSettings.DisableAdvantageous = value ? AdvantageousMode.On : AdvantageousMode.Off;
 							setAdv = true;
 							break;
 					}
 				}
 
-				if (setAdv && tweakSettings.DisableAdvantageous && (setHud && tweakSettings.BombHUD || setEdgework && tweakSettings.ShowEdgework)) return "Cannot enable HUD or edgework when advantageous features are disabled.";
+				if (mission.BombHUD != HUDMode.None)
+					tweakSettings.BombHUD = mission.BombHUD;
+
+				if (setAdv && tweakSettings.DisableAdvantageous == AdvantageousMode.On && (tweakSettings.BombHUD == HUDMode.On || setEdgework && tweakSettings.ShowEdgework)) return "Cannot enable HUD or edgework when advantageous features are disabled.";
 
 				if (mission.Mode != Mode.None)
 					tweakSettings.Mode = mission.Mode;
 
-				if (tweakSettings.DisableAdvantageous && tweakSettings.Mode != Mode.Normal) return $"Advantageous features are disabled. Cannot set mode to {tweakSettings.Mode} Mode.";
+				if (tweakSettings.DisableAdvantageous == AdvantageousMode.On && tweakSettings.Mode != Mode.Normal) return $"Advantageous features are disabled. Cannot set mode to {tweakSettings.Mode} Mode.";
 			}
 
 			ModeSettings modeSettings = null;
@@ -986,6 +1010,8 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			Mode mode = Mode.None;
 			bool modeSet = false;
+			HUDMode bombHUD = HUDMode.None;
+
 			List<string> messages = new List<string>();
 
 			var matches = tokenRegex.Matches(text);
@@ -1208,6 +1234,27 @@ namespace DynamicMissionGeneratorAssembly
 									{
 										mode = (Mode) modeIndex;
 										modeSet = true;
+									}
+								}
+								break;
+							case "hud":
+								if (bombs != null && currentBomb != null) messages.Add("Bomb HUD cannot be a bomb-level setting");
+								else if (bombHUD != HUDMode.None) messages.Add("Bomb HUD specified multiple times");
+								else if (!tweaksEnabled && !Application.isEditor) messages.Add("Tweaks is not enabled, cannot set Bomb HUD");
+								else
+								{
+									int hudIndex;
+									for (hudIndex = 0; hudIndex < tweaksBombHUDList.Length; ++hudIndex)
+									{
+										if (tweaksBombHUDList[hudIndex].ModuleType.Equals(match.Groups["Value"].Value, StringComparison.InvariantCultureIgnoreCase)) break;
+									}
+									if (hudIndex >= tweaksBombHUDList.Length)
+									{
+										messages.Add($"Invalid Bomb HUD '{match.Groups["Value"].Value}'");
+									}
+									else
+									{
+										bombHUD = (HUDMode) hudIndex;
 									}
 								}
 								break;
@@ -1470,6 +1517,7 @@ namespace DynamicMissionGeneratorAssembly
 				RuleSeed = ruleseed,
 				MissionSeed = missionSeed,
 				Mode = mode,
+				BombHUD = bombHUD,
 				TweakSettings = tweakSettings,
 				ModeSettings = modeSettings,
 				GameplayRoom = gameplayRoom,
