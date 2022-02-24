@@ -29,7 +29,7 @@ public class AssetBundler
     /// <summary>
     /// List of managed assemblies to ignore in the build (because they already exist in KTaNE itself)
     /// </summary>
-    static List<string> EXCLUDED_ASSEMBLIES = new List<string> { "KMFramework.dll" };
+    static List<string> EXCLUDED_ASSEMBLIES = new List<string> { "KMFramework.dll", "0Harmony.dll" };
 
     /// <summary>
     /// Location of MSBuild.exe tool
@@ -116,6 +116,8 @@ public class AssetBundler
             //Update material info components for future compatibility checks
             bundler.UpdateMaterialInfo();
 
+			bool UseHarmony = false;
+
             //Build the assembly using either MSBuild or Unity EditorUtility methods
             if (useMSBuild)
             {
@@ -127,10 +129,10 @@ public class AssetBundler
             }
 
             //Copy any other non-Editor managed assemblies to the output folder
-            bundler.CopyManagedAssemblies();
+            bundler.CopyManagedAssemblies(ref UseHarmony);
 
             //Create the modInfo.json file and copy the preview image if available
-            bundler.CreateModInfo();
+            bundler.CreateModInfo(UseHarmony);
 
             //Copy the modSettings.json file from Assets into the build
             bundler.CopyModSettings();
@@ -244,27 +246,13 @@ public class AssetBundler
             .Select(path => "Assets/Plugins/Managed/" + Path.GetFileNameWithoutExtension(path))
             .ToList();
 
-        string unityAssembliesLocation;
-        switch (Application.platform)
-        {
-            case RuntimePlatform.OSXEditor:
-                unityAssembliesLocation = EditorApplication.applicationPath + "/Contents/Managed/";
-                break;
-            case RuntimePlatform.LinuxEditor:
-            case RuntimePlatform.WindowsEditor:
-            default:
-                unityAssembliesLocation = Path.Combine(Path.GetDirectoryName(EditorApplication.applicationPath), @"Data/Managed/");
-                break;
-        }
+        managedReferences.Add(Path.Combine(EditorApplication.applicationContentsPath, "Managed/UnityEngine"));
 
-        managedReferences.Add(unityAssembliesLocation + "UnityEngine");
-	    managedReferences.Add(unityAssembliesLocation + "../UnityExtensions/Unity/GUISystem/UnityEngine.UI");
+        //Next we need to grab some type references and use reflection to build things the way Unity does.
+        //Note that EditorUtility.CompileCSharp will do *almost* exactly the same thing, but it unfortunately
+        //defaults to "unity" rather than "2.0" when selecting the .NET support for the classlib_profile.
 
-		//Next we need to grab some type references and use reflection to build things the way Unity does.
-		//Note that EditorUtility.CompileCSharp will do *almost* exactly the same thing, but it unfortunately
-		//defaults to "unity" rather than "2.0" when selecting the .NET support for the classlib_profile.
-
-		string[] scriptArray = scriptAssetPaths.ToArray();
+        string[] scriptArray = scriptAssetPaths.ToArray();
         string[] referenceArray = managedReferences.ToArray();
         string[] defineArray = allDefines.Split(';');
 
@@ -386,18 +374,20 @@ public class AssetBundler
     /// <summary>
     /// Copy all managed non-Editor assemblies to the OUTPUT_FOLDER for inclusion alongside the mod bundle.
     /// </summary>
-    protected void CopyManagedAssemblies()
+    protected void CopyManagedAssemblies(ref bool UseHarmony)
     {
         IEnumerable<string> assetPaths = AssetDatabase.GetAllAssetPaths().Where(path => path.EndsWith(".dll") && path.StartsWith("Assets/Plugins"));
 
         //Now find any other managed plugins that should be included, other than the EXCLUDED_ASSEMBLIES list
         foreach (string assetPath in assetPaths)
-        {
+        {	
             var pluginImporter = AssetImporter.GetAtPath(assetPath) as PluginImporter;
 
             if (pluginImporter != null && !pluginImporter.isNativePlugin && pluginImporter.GetCompatibleWithAnyPlatform())
             {
                 string assetName = Path.GetFileName(assetPath);
+                if(assetName == "0Harmony.dll")
+					UseHarmony = true;
                 if (!EXCLUDED_ASSEMBLIES.Contains(assetName))
                 {
                     string dest = Path.Combine(outputFolder, Path.GetFileName(assetPath));
@@ -443,9 +433,9 @@ public class AssetBundler
     /// <summary>
     /// Creates a modInfo.json file and puts it in the OUTPUT_FOLDER.
     /// </summary>
-    protected void CreateModInfo()
+    protected void CreateModInfo(bool UseHarmony)
     {
-        File.WriteAllText(outputFolder + "/modInfo.json", ModConfig.Instance.ToJson());
+        File.WriteAllText(outputFolder + (UseHarmony ? "/modInfo_Harmony.json" : "/modInfo.json"), ModConfig.Instance.ToJson());
 
         if(ModConfig.PreviewImage != null)
         {
