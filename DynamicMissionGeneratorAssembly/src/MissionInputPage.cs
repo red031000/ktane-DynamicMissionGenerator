@@ -1511,6 +1511,8 @@ namespace DynamicMissionGeneratorAssembly
 				gameplayRoom = FACTORY_ROOM;
 			}
 
+			mission.Description = text;
+
 			var dmgMission = new DMGMission
 			{
 				KMMission = mission,
