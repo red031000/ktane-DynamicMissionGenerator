@@ -20,9 +20,9 @@ MonoBehaviour:
     https://github.com/red031000/ktane-DynamicMissionGenerator/blob/master/README.md
     for a guide on how to use this.[/h1]\n\r\nI recommend using [url=https://ktane.timwi.de/]ktane.timwi.de[/url]
     to find the module IDs of the mods\r\n\r\nif you encounter any problems, do not
-    hesitate to contact me on the [url=https://discord.gg/ktane]ktane discord[/url]
-    where my username and tag is red031000#2155"
-  version: 2.6
+    hesitate to contact me on the [url=https://discord.gg/K6uQMyBcYZ]ktane discord[/url]
+    where my username is red031000"
+  version: 2.7
   outputFolder: C:\Program Files (x86)\Steam\SteamApps\common\Keep Talking and Nobody
     Explodes\mods
   previewImage: {fileID: 2800000, guid: 83c2097b2316b5c4f8677cf098399300, type: 3}
