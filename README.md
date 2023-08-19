@@ -35,6 +35,7 @@ Anything following `//` is considered a comment and ignored. Anything between `/
 
 Starting to type certain tokens will cause a list of potential completions to appear. You can quickly insert one of these options by clicking it or pressing Tab.
 
+To get around spam filters on places like Twitch, ! can be used instead of : for all tokens apart from bomb time.
 
 # Modkit support for DMG
 

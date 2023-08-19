@@ -60,7 +60,7 @@ namespace DynamicMissionGeneratorAssembly
 					tm_maxmult|tm_minmult|tm_mintimegain|tm_mintimelost|tm_multstrikepenalty|tm_pointmult|tm_solvebonus|tm_startmult|tm_timestrikepenalty|
 					zm_timemaxspeed|zm_timepenalty|zm_timepenaltyinc|zm_timespeedup
 
-				)\b(?::(?<Value>(?:,\s*|[^\s)])*))?|
+				)\b(?:(?::|!)(?<Value>(?:,\s*|[^\s)])*))?|
 				(?<NoDup>!)?
 				(?:(?<Count>\d{1,9})\s*[;*]\s*)?
 				(?:
@@ -1374,8 +1374,8 @@ namespace DynamicMissionGeneratorAssembly
 						default:
 							foreach (string id in list.Split(',', '+').Select(s => s.Trim()))
 							{
-								bool useProfile = id.StartsWith("profile:", StringComparison.InvariantCultureIgnoreCase);
-								bool useNeedyProfile = !useProfile && id.StartsWith("needyprofile:", StringComparison.InvariantCultureIgnoreCase);
+								bool useProfile = id.StartsWith("profile:", StringComparison.InvariantCultureIgnoreCase) || id.StartsWith("profile!", StringComparison.InvariantCultureIgnoreCase);
+								bool useNeedyProfile = !useProfile && (id.StartsWith("needyprofile:", StringComparison.InvariantCultureIgnoreCase) || id.StartsWith("needyprofile!", StringComparison.InvariantCultureIgnoreCase));
 								if (useProfile || useNeedyProfile)
 								{
 									var profileName = id.Substring(useNeedyProfile ? 13 : 8);

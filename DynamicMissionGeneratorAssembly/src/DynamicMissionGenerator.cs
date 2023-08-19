@@ -31,6 +31,14 @@ namespace DynamicMissionGeneratorAssembly
 		{
 			Instance = this;
 
+			//get around a mod selector API bug
+			string modSelectorConfig = Path.Combine(Application.persistentDataPath, "modSelectorConfig.json");
+
+			if (!File.Exists(modSelectorConfig))
+			{
+				File.WriteAllText(modSelectorConfig, "{}");
+			}	
+
 			StartCoroutine(FindModSelector());
 
 			Directory.CreateDirectory(MissionsFolder);
