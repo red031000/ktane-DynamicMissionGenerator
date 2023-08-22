@@ -36,8 +36,14 @@ namespace DynamicMissionGeneratorAssembly
 
 			if (!File.Exists(modSelectorConfig))
 			{
-				File.WriteAllText(modSelectorConfig, "{}");
-			}	
+				File.Create(modSelectorConfig);
+			}
+
+			//fix my earlier fuckup
+			if (File.ReadAllText(modSelectorConfig).Trim().Replace(" ", "") == "{}")
+			{
+				File.WriteAllText(modSelectorConfig, "");
+			}
 
 			StartCoroutine(FindModSelector());
 
