@@ -1006,6 +1006,8 @@ namespace DynamicMissionGeneratorAssembly
 			return null;
 		}
 
+		private static int _missionCounter = 0;
+
 		private DMGMission ParseTextToMission(string text)
 		{
 			Mode mode = Mode.None;
@@ -1039,6 +1041,7 @@ namespace DynamicMissionGeneratorAssembly
 			bool onlyFactoryRoom = true;
 
 			KMMission mission = ScriptableObject.CreateInstance<KMMission>();
+			mission.name = $"Dynamic mission {_missionCounter++}";
 			mission.PacingEventsEnabled = true;
 			List<KMComponentPool> pools = null;
 			List<KMComponentPool> noDups = new List<KMComponentPool>();

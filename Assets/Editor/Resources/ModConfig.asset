@@ -23,6 +23,5 @@ MonoBehaviour:
     hesitate to contact me on the [url=https://discord.gg/K6uQMyBcYZ]ktane discord[/url]
     where my username is red031000"
   version: 2.9
-  outputFolder: C:\Program Files (x86)\Steam\SteamApps\common\Keep Talking and Nobody
-    Explodes\mods
+  outputFolder: build
   previewImage: {fileID: 2800000, guid: 83c2097b2316b5c4f8677cf098399300, type: 3}
